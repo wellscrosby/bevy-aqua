@@ -17,8 +17,5 @@ bevy = { workspace = true, features = [
 ] }
 bevy_hanabi.workspace = true
 
-[package.metadata.docs.rs]
-cargo-args = ["-j", "1"]
-
 [lints]
 workspace = true

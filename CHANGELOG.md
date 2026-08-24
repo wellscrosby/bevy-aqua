@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-08-24
+
+### Fixed
+
+- Remove the incompatible docs.rs Cargo job override so documentation builds can run with the service-provided job setting.
+
 ## [0.1.1] - 2026-08-24
 
 ### Fixed
