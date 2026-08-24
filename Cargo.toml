@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/aqua-fft", "crates/aqua-sdf", "crates/aqua-geom", "crates/aqua-light", "crates/aqua-optics", "crates/aqua-core", "crates/aqua-waves", "crates/aqua-foam", "crates/aqua-shore", "crates/aqua-query", "crates/aqua-reflect", "crates/aqua-spray", "crates/aqua-motion"]
+members = ["crates/bevy-aqua-fft", "crates/bevy-aqua-sdf", "crates/bevy-aqua-geom", "crates/bevy-aqua-light", "crates/bevy-aqua-optics", "crates/bevy-aqua-core", "crates/bevy-aqua-waves", "crates/bevy-aqua-foam", "crates/bevy-aqua-shore", "crates/bevy-aqua-query", "crates/bevy-aqua-reflect", "crates/bevy-aqua-spray", "crates/bevy-aqua-motion"]
 resolver = "2"
 
 [workspace.package]
@@ -10,19 +10,19 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/sayhisam1/bevy-aqua"
 
 [workspace.dependencies]
-aqua-core = { path = "crates/aqua-core", version = "0.1.0" }
-aqua-fft = { path = "crates/aqua-fft", version = "0.1.0" }
-aqua-foam = { path = "crates/aqua-foam", version = "0.1.0" }
-aqua-geom = { path = "crates/aqua-geom", version = "0.1.0" }
-aqua-light = { path = "crates/aqua-light", version = "0.1.0" }
-aqua-optics = { path = "crates/aqua-optics", version = "0.1.0" }
-aqua-motion = { path = "crates/aqua-motion", version = "0.1.0" }
-aqua-query = { path = "crates/aqua-query", version = "0.1.0" }
-aqua-reflect = { path = "crates/aqua-reflect", version = "0.1.0" }
-aqua-sdf = { path = "crates/aqua-sdf", version = "0.1.0" }
-aqua-spray = { path = "crates/aqua-spray", version = "0.1.0" }
-aqua-shore = { path = "crates/aqua-shore", version = "0.1.0" }
-aqua-waves = { path = "crates/aqua-waves", version = "0.1.0" }
+bevy-aqua-core = { path = "crates/bevy-aqua-core", version = "0.1.0" }
+bevy-aqua-fft = { path = "crates/bevy-aqua-fft", version = "0.1.0" }
+bevy-aqua-foam = { path = "crates/bevy-aqua-foam", version = "0.1.0" }
+bevy-aqua-geom = { path = "crates/bevy-aqua-geom", version = "0.1.0" }
+bevy-aqua-light = { path = "crates/bevy-aqua-light", version = "0.1.0" }
+bevy-aqua-optics = { path = "crates/bevy-aqua-optics", version = "0.1.0" }
+bevy-aqua-motion = { path = "crates/bevy-aqua-motion", version = "0.1.0" }
+bevy-aqua-query = { path = "crates/bevy-aqua-query", version = "0.1.0" }
+bevy-aqua-reflect = { path = "crates/bevy-aqua-reflect", version = "0.1.0" }
+bevy-aqua-sdf = { path = "crates/bevy-aqua-sdf", version = "0.1.0" }
+bevy-aqua-spray = { path = "crates/bevy-aqua-spray", version = "0.1.0" }
+bevy-aqua-shore = { path = "crates/bevy-aqua-shore", version = "0.1.0" }
+bevy-aqua-waves = { path = "crates/bevy-aqua-waves", version = "0.1.0" }
 anyhow = "1"
 bevy = { version = "0.19", default-features = false }
 bevy_ecs = "0.19"
@@ -64,20 +64,20 @@ exclude = [
 
 [features]
 default = ["query", "reflect"]
-query = ["dep:aqua-query"]
-reflect = ["dep:aqua-reflect"]
-motion = ["dep:aqua-motion"]
-spray = ["dep:aqua-spray", "query"]
+query = ["dep:bevy-aqua-query"]
+reflect = ["dep:bevy-aqua-reflect"]
+motion = ["dep:bevy-aqua-motion"]
+spray = ["dep:bevy-aqua-spray", "query"]
 
 [dependencies]
-aqua-core.workspace = true
-aqua-foam.workspace = true
-aqua-motion = { workspace = true, optional = true }
-aqua-waves.workspace = true
-aqua-query = { workspace = true, optional = true }
-aqua-reflect = { workspace = true, optional = true }
-aqua-spray = { workspace = true, optional = true }
-aqua-shore.workspace = true
+bevy-aqua-core.workspace = true
+bevy-aqua-foam.workspace = true
+bevy-aqua-motion = { workspace = true, optional = true }
+bevy-aqua-waves.workspace = true
+bevy-aqua-query = { workspace = true, optional = true }
+bevy-aqua-reflect = { workspace = true, optional = true }
+bevy-aqua-spray = { workspace = true, optional = true }
+bevy-aqua-shore.workspace = true
 bevy = { workspace = true, features = [
     "bevy_asset",
     "bevy_pbr",

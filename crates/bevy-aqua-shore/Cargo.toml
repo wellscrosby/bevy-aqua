@@ -1,0 +1,20 @@
+[package]
+name = "bevy-aqua-shore"
+description = "Aqua shoreline & bed domain: water-body registration and the global fields bake."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bevy-aqua-core.workspace = true
+bevy-aqua-sdf.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_log",
+    "bevy_render",
+] }
+
+[lints]
+workspace = true

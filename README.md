@@ -34,7 +34,7 @@ bodies, and GPU surface queries.
 | 0.1 | 0.19 | 1.95+ | Desktop Vulkan on NVIDIA RTX 3070 |
 
 The default `query` and `reflect` features enable GPU wave probes and planar
-reflections. The optional `spray` feature adds `aqua-spray` and `bevy_hanabi`,
+reflections. The optional `spray` feature adds `bevy-aqua-spray` and `bevy_hanabi`,
 implies `query`, and defaults to `Off` at runtime. Web, mobile, and other
 desktop APIs are not yet verified.
 

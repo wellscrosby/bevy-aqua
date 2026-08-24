@@ -1,0 +1,15 @@
+[package]
+name = "bevy-aqua-sdf"
+description = "Signed-shape and river-flow math for Aqua: containment, extents, polyline sampling, closed-form analytic river waves."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bevy_ecs.workspace = true
+glam.workspace = true
+
+[lints]
+workspace = true

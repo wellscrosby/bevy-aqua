@@ -1,0 +1,21 @@
+[package]
+name = "bevy-aqua-spray"
+description = "Budgeted Hanabi spray driven by Aqua wave and shoreline signals."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bevy-aqua-core.workspace = true
+bevy-aqua-query.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_core_pipeline",
+    "bevy_render",
+] }
+bevy_hanabi.workspace = true
+
+[lints]
+workspace = true

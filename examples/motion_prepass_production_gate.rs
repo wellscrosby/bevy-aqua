@@ -12,7 +12,6 @@ use std::{
     time::Duration,
 };
 
-use aqua_core::CascadeMaterial;
 use bevy::{
     app::ScheduleRunnerPlugin,
     camera::RenderTarget,
@@ -40,6 +39,7 @@ use bevy::{
     winit::WinitPlugin,
 };
 use bevy_aqua::{AquaMotionSystems, AquaPlugin, AquaSettings, Ocean, OceanWaves, ReflectionMode};
+use bevy_aqua_core::CascadeMaterial;
 
 const SIZE: u32 = 64;
 const ROW_BYTES: u32 = SIZE * 4;
@@ -122,12 +122,12 @@ fn run_app() {
         .add_systems(Startup, setup)
         .add_systems(
             PostUpdate,
-            drive_gate.before(aqua_core::CascadeMaterialsUpdated),
+            drive_gate.before(bevy_aqua_core::CascadeMaterialsUpdated),
         )
         .add_systems(
             PostUpdate,
             force_ring_recenter
-                .after(aqua_core::CascadeMaterialsUpdated)
+                .after(bevy_aqua_core::CascadeMaterialsUpdated)
                 .before(TransformSystems::Propagate),
         )
         .add_systems(Last, collect_and_finish);

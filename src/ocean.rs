@@ -10,14 +10,14 @@ use bevy::{
     prelude::*,
 };
 
-use aqua_core::cascade as lod;
-use aqua_core::rings as geometry;
-use aqua_core::{
+use bevy_aqua_core::cascade as lod;
+use bevy_aqua_core::rings as geometry;
+use bevy_aqua_core::{
     LOD_COUNT, Ocean, ResolvedWaterBodies, ResolvedWaterBody, TILE_RESOLUTION, ViewPos, WaterBody,
     WaterOptics, WaterShape, lod_scale,
 };
-use aqua_core::{OceanWaves, WaveModel};
-use aqua_waves as waves;
+use bevy_aqua_core::{OceanWaves, WaveModel};
+use bevy_aqua_waves as waves;
 
 #[derive(Component, Debug)]
 pub(crate) struct Tile {

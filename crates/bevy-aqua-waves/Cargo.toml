@@ -1,0 +1,19 @@
+[package]
+name = "bevy-aqua-waves"
+description = "Aqua wave producers: Gerstner component bands and JONSWAP/FFT AnimWaves compute."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bevy-aqua-core.workspace = true
+bevy-aqua-fft.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_render",
+] }
+
+[lints]
+workspace = true

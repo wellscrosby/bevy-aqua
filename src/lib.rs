@@ -44,51 +44,51 @@ mod ocean;
 use bevy::{camera::visibility::VisibilitySystems, prelude::*};
 
 #[doc(inline)]
-pub use aqua_core::{
+pub use bevy_aqua_core::{
     AquaDebug, AquaSettings, BedHeightMap, Caustics, CausticsSunVisibility, FlowSample, Ocean,
     OceanWaves, ReflectionMode, RiverPath, RiverPoint, RiverSample, SeaState, WaterBody,
     WaterOptics, WaterShape, WaveModel,
 };
-use aqua_core::{
+use bevy_aqua_core::{
     CascadeDataReady, CascadeMaterial, CascadeMaterialsUpdated, Data, OceanView, ViewDetail,
     ViewOrder, ViewPos, ViewSeaLevel, projected_detail_lod,
 };
 #[cfg(feature = "motion")]
-pub use aqua_motion::{AquaMotionPlugin, AquaMotionSystems};
+pub use bevy_aqua_motion::{AquaMotionPlugin, AquaMotionSystems};
 #[cfg(feature = "query")]
 #[doc(inline)]
-pub use aqua_query::{WaveQuery, WaveSurface};
+pub use bevy_aqua_query::{WaveQuery, WaveSurface};
 #[cfg(feature = "reflect")]
-pub use aqua_reflect::ReflectedInWater;
+pub use bevy_aqua_reflect::ReflectedInWater;
 #[cfg(feature = "spray")]
-pub use aqua_spray::{SprayQuality, SpraySettings};
+pub use bevy_aqua_spray::{SprayQuality, SpraySettings};
 /// Adds the ocean renderer and its simulation plugins.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AquaPlugin;
 
 impl Plugin for AquaPlugin {
     fn build(&self, app: &mut App) {
-        aqua_core::add_shader(app);
-        aqua_core::bed::add(app);
+        bevy_aqua_core::add_shader(app);
+        bevy_aqua_core::bed::add(app);
         app.add_plugins(bevy::render::extract_resource::ExtractResourcePlugin::<Data>::default());
-        app.init_resource::<aqua_core::WaterFields>();
-        app.add_plugins(aqua_waves::AquaWavesPlugin);
-        app.add_plugins(aqua_foam::AquaFoamPlugin);
-        app.add_plugins(aqua_shore::AquaShorePlugin);
+        app.init_resource::<bevy_aqua_core::WaterFields>();
+        app.add_plugins(bevy_aqua_waves::AquaWavesPlugin);
+        app.add_plugins(bevy_aqua_foam::AquaFoamPlugin);
+        app.add_plugins(bevy_aqua_shore::AquaShorePlugin);
         #[cfg(feature = "motion")]
-        app.add_plugins(aqua_motion::AquaMotionPlugin);
+        app.add_plugins(bevy_aqua_motion::AquaMotionPlugin);
         #[cfg(feature = "reflect")]
-        app.add_plugins(aqua_reflect::AquaReflectPlugin);
+        app.add_plugins(bevy_aqua_reflect::AquaReflectPlugin);
         #[cfg(feature = "spray")]
-        app.add_plugins(aqua_spray::AquaSprayPlugin);
+        app.add_plugins(bevy_aqua_spray::AquaSprayPlugin);
         // Root creation and level changes run before transform propagation.
         // The resolved snapshot prunes invalid or removed bounded-only roots.
         app.add_systems(Update, ocean::sync).add_systems(
             PostUpdate,
-            ocean::prune.after(aqua_core::WaterBodiesResolved),
+            ocean::prune.after(bevy_aqua_core::WaterBodiesResolved),
         );
         #[cfg(feature = "query")]
-        app.add_plugins(aqua_query::AquaQueryPlugin);
+        app.add_plugins(bevy_aqua_query::AquaQueryPlugin);
         app.add_plugins(bevy::pbr::MaterialPlugin::<CascadeMaterial>::default())
             .init_resource::<AquaDebug>()
             .init_resource::<AquaSettings>()
@@ -133,7 +133,7 @@ type OceanCameraQuery<'w, 's> = Query<
     ),
     (
         With<bevy::camera::Camera3d>,
-        Without<aqua_core::AuxiliaryWaterView>,
+        Without<bevy_aqua_core::AuxiliaryWaterView>,
     ),
 >;
 
@@ -197,24 +197,27 @@ fn update_view(
 fn lod_init(
     mut commands: Commands,
     bed: Option<Res<BedHeightMap>>,
-    fallback: Res<aqua_core::GpuFallback>,
+    fallback: Res<bevy_aqua_core::GpuFallback>,
     sea_level: Res<ViewSeaLevel>,
-    foam_textures: Res<aqua_foam::Textures>,
-    caustics: Res<aqua_shore::CausticsTexture>,
+    foam_textures: Res<bevy_aqua_foam::Textures>,
+    caustics: Res<bevy_aqua_shore::CausticsTexture>,
     mut images: ResMut<Assets<bevy::image::Image>>,
     mut materials: ResMut<Assets<CascadeMaterial>>,
 ) {
-    let texture = images.add(aqua_core::cascade::make_texture());
-    let fft_surface = images.add(aqua_core::cascade::make_fft_surface_texture());
-    let detail_normal = images.add(aqua_core::cascade::make_detail_normal_texture());
-    let mut layout =
-        aqua_core::GpuLayout::new(&aqua_core::cascade::layout(Vec2::ZERO), Vec2::ZERO, 0.0);
+    let texture = images.add(bevy_aqua_core::cascade::make_texture());
+    let fft_surface = images.add(bevy_aqua_core::cascade::make_fft_surface_texture());
+    let detail_normal = images.add(bevy_aqua_core::cascade::make_detail_normal_texture());
+    let mut layout = bevy_aqua_core::GpuLayout::new(
+        &bevy_aqua_core::cascade::layout(Vec2::ZERO),
+        Vec2::ZERO,
+        0.0,
+    );
     layout.set_bed(bed.as_deref(), sea_level.0);
-    let (params, level_id, flow) = aqua_shore::bake(&[], false);
+    let (params, level_id, flow) = bevy_aqua_shore::bake(&[], false);
     let material = materials.add(CascadeMaterial {
         texture: texture.clone(),
         layout: layout.clone(),
-        surface: aqua_core::cascade::SurfaceParams::default(),
+        surface: bevy_aqua_core::cascade::SurfaceParams::default(),
         sea_floor: bed
             .map(|map| map.image.clone())
             .unwrap_or_else(|| fallback.0.clone()),
@@ -227,18 +230,18 @@ fn lod_init(
         field_flow: images.add(flow),
         reflection_a: fallback.0.clone(),
         reflection_b: fallback.0.clone(),
-        reflections: aqua_core::PlanarReflectionParams::default(),
+        reflections: bevy_aqua_core::PlanarReflectionParams::default(),
         caustics: caustics.0.clone(),
     });
     commands.insert_resource(Data::new(material, texture, fft_surface, layout));
 }
 
 fn lod_update(
-    inputs: aqua_core::cascade::UpdateInputs<'_>,
+    inputs: bevy_aqua_core::cascade::UpdateInputs<'_>,
     data: ResMut<Data>,
     materials: ResMut<Assets<CascadeMaterial>>,
 ) {
-    aqua_core::cascade::update(inputs, data, materials);
+    bevy_aqua_core::cascade::update(inputs, data, materials);
 }
 
 #[cfg(test)]
