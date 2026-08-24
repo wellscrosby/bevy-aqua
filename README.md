@@ -183,6 +183,10 @@ values under the `Open-ocean scene` help heading require `--scene anim-waves`
 or an open-ocean profile pose. Run the showcase with `--help` for grouped
 presentation, water, diagnostic, capture, and profiling flags.
 
+## AI disclosure
+
+This project was developed with assistance from AI coding agents.
+
 ## Attribution
 
 Aqua adapts established ocean-rendering techniques and includes attributed
