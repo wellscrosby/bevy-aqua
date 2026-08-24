@@ -1,0 +1,127 @@
+[workspace]
+members = ["crates/aqua-fft", "crates/aqua-sdf", "crates/aqua-geom", "crates/aqua-light", "crates/aqua-optics", "crates/aqua-core", "crates/aqua-waves", "crates/aqua-foam", "crates/aqua-shore", "crates/aqua-query", "crates/aqua-reflect", "crates/aqua-spray", "crates/aqua-motion"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sayhisam1/bevy-aqua"
+
+[workspace.dependencies]
+aqua-core = { path = "crates/aqua-core", version = "0.1.0" }
+aqua-fft = { path = "crates/aqua-fft", version = "0.1.0" }
+aqua-foam = { path = "crates/aqua-foam", version = "0.1.0" }
+aqua-geom = { path = "crates/aqua-geom", version = "0.1.0" }
+aqua-light = { path = "crates/aqua-light", version = "0.1.0" }
+aqua-optics = { path = "crates/aqua-optics", version = "0.1.0" }
+aqua-motion = { path = "crates/aqua-motion", version = "0.1.0" }
+aqua-query = { path = "crates/aqua-query", version = "0.1.0" }
+aqua-reflect = { path = "crates/aqua-reflect", version = "0.1.0" }
+aqua-sdf = { path = "crates/aqua-sdf", version = "0.1.0" }
+aqua-spray = { path = "crates/aqua-spray", version = "0.1.0" }
+aqua-shore = { path = "crates/aqua-shore", version = "0.1.0" }
+aqua-waves = { path = "crates/aqua-waves", version = "0.1.0" }
+anyhow = "1"
+bevy = { version = "0.19", default-features = false }
+bevy_ecs = "0.19"
+bevy-bench = { path = "../bevy-bench" }
+clap = { version = "4", features = ["derive"] }
+bevy_hanabi = { version = "0.19.0", default-features = false, features = ["3d"] }
+glam = "0.32"
+
+[workspace.lints.rust]
+ambiguous_negative_literals = "warn"
+missing_debug_implementations = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+trivial_numeric_casts = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unused_lifetimes = "warn"
+
+[package]
+name = "bevy-aqua"
+description = "Camera-centred ocean rendering for Bevy with Gerstner and FFT waves."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/bevy-aqua"
+keywords = ["bevy", "water", "ocean", "shader"]
+categories = ["game-development", "rendering"]
+exclude = [
+    "assets/test/**",
+    "examples/config/**",
+    "examples/showcase/**",
+    "examples/showcase.rs",
+    "refs/**",
+    "scr_prime-agent-bevy-2.txt",
+]
+
+
+[features]
+default = ["query", "reflect"]
+query = ["dep:aqua-query"]
+reflect = ["dep:aqua-reflect"]
+motion = ["dep:aqua-motion"]
+spray = ["dep:aqua-spray", "query"]
+
+[dependencies]
+aqua-core.workspace = true
+aqua-foam.workspace = true
+aqua-motion = { workspace = true, optional = true }
+aqua-waves.workspace = true
+aqua-query = { workspace = true, optional = true }
+aqua-reflect = { workspace = true, optional = true }
+aqua-spray = { workspace = true, optional = true }
+aqua-shore.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_pbr",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "png",
+] }
+
+[dev-dependencies]
+anyhow.workspace = true
+bevy-bench.workspace = true
+clap.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_core_pipeline",
+    "bevy_gltf",
+    "bevy_log",
+    "bevy_pbr",
+    "bevy_post_process",
+    "bevy_render",
+    "bevy_scene",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_render",
+    "bevy_window",
+    "bevy_winit",
+    "default_font",
+    "jpeg",
+    "multi_threaded",
+    "png",
+    "reflect_auto_register",
+    "tonemapping_luts",
+    "x11",
+    "zstd_rust",
+] }
+
+[[example]]
+name = "motion_prepass_production_gate"
+required-features = ["motion"]
+
+[lints]
+workspace = true
+
+[profile.dev]
+opt-level = 1
+[profile.dev.package."*"]
+opt-level = 3

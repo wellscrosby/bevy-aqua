@@ -1,0 +1,21 @@
+[package]
+name = "aqua-reflect"
+description = "Planar scene reflections for bevy-aqua water surfaces."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[dependencies]
+aqua-core.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_render",
+] }
+
+[lints]
+workspace = true

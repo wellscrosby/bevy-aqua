@@ -1,0 +1,19 @@
+[package]
+name = "aqua-query"
+description = "Aqua gameplay probes: GPU-sampled water displacement and normals with async readback."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+aqua-core.workspace = true
+aqua-sdf.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_render",
+] }
+
+[lints]
+workspace = true

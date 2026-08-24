@@ -1,0 +1,21 @@
+[package]
+name = "aqua-core"
+description = "Aqua cascade and material ABI, water-field types, bed map, shared render plumbing, and WGSL contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+aqua-geom.workspace = true
+aqua-optics.workspace = true
+aqua-sdf.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_pbr",
+    "bevy_render",
+] }
+
+[lints]
+workspace = true

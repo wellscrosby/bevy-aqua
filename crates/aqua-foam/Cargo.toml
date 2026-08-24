@@ -1,0 +1,19 @@
+[package]
+name = "aqua-foam"
+description = "Aqua persistent foam: Crest-style simulation cascade, shoreline foam, and the foam shading module."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+aqua-core.workspace = true
+bevy = { workspace = true, features = [
+    "bevy_asset",
+    "bevy_render",
+    "png",
+] }
+
+[lints]
+workspace = true
