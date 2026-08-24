@@ -29,5 +29,8 @@ bevy = { workspace = true, features = [
     "multi_threaded",
 ] }
 
+[package.metadata.docs.rs]
+cargo-args = ["-j", "1"]
+
 [lints]
 workspace = true

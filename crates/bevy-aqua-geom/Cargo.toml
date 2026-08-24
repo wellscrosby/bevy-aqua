@@ -10,5 +10,8 @@ repository.workspace = true
 [dependencies]
 bevy = { workspace = true, features = ["bevy_asset", "bevy_render"] }
 
+[package.metadata.docs.rs]
+cargo-args = ["-j", "1"]
+
 [lints]
 workspace = true

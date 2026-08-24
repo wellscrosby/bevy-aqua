@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-08-24
+
+### Fixed
+
+- Limit docs.rs builds to one Cargo job to stay within the documentation sandbox memory limit.
+- Document all facade features so optional re-exports appear on the umbrella API page.
+
 ## [0.1.0] - 2026-08-24
 
 ### Added
