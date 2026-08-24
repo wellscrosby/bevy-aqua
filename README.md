@@ -1,5 +1,7 @@
 # bevy-aqua
 
+[![crates.io](https://img.shields.io/crates/v/bevy-aqua.svg)](https://crates.io/crates/bevy-aqua)
+
 Camera-centred ocean rendering for Bevy 0.19 with analytic and FFT waves,
 depth-aware transmission, reflections, persistent foam, localized water
 bodies, and GPU surface queries.
