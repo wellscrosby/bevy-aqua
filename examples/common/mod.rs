@@ -1,5 +1,7 @@
 //! Shared presentation support for Aqua examples.
 
+pub mod capture;
+
 use bevy::{
     post_process::bloom::Bloom,
     prelude::*,

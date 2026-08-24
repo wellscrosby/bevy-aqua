@@ -26,7 +26,6 @@ bevy-aqua-waves = { path = "crates/bevy-aqua-waves", version = "0.1.0" }
 anyhow = "1"
 bevy = { version = "0.19", default-features = false }
 bevy_ecs = "0.19"
-bevy-bench = { path = "../bevy-bench" }
 clap = { version = "4", features = ["derive"] }
 bevy_hanabi = { version = "0.19.0", default-features = false, features = ["3d"] }
 glam = "0.32"
@@ -52,14 +51,7 @@ readme = "README.md"
 documentation = "https://docs.rs/bevy-aqua"
 keywords = ["bevy", "water", "ocean", "shader"]
 categories = ["game-development", "rendering"]
-exclude = [
-    "assets/test/**",
-    "examples/config/**",
-    "examples/showcase/**",
-    "examples/showcase.rs",
-    "refs/**",
-    "scr_prime-agent-bevy-2.txt",
-]
+exclude = ["assets/test/**"]
 
 
 [features]
@@ -88,7 +80,6 @@ bevy = { workspace = true, features = [
 
 [dev-dependencies]
 anyhow.workspace = true
-bevy-bench.workspace = true
 clap.workspace = true
 bevy = { workspace = true, features = [
     "bevy_asset",
@@ -113,10 +104,6 @@ bevy = { workspace = true, features = [
     "x11",
     "zstd_rust",
 ] }
-
-[[example]]
-name = "motion_prepass_production_gate"
-required-features = ["motion"]
 
 [lints]
 workspace = true

@@ -712,7 +712,15 @@ fn positive_u32(value: &str) -> Result<u32, String> {
 }
 
 fn resolution(value: &str) -> Result<UVec2, String> {
-    bevy_bench::parse_resolution(std::ffi::OsStr::new(value)).map_err(|error| error.to_string())
+    let (width, height) = value
+        .split_once('x')
+        .ok_or_else(|| "resolution requires WIDTHxHEIGHT".to_string())?;
+    let width = width.parse::<u32>().map_err(|error| error.to_string())?;
+    let height = height.parse::<u32>().map_err(|error| error.to_string())?;
+    if width == 0 || height == 0 {
+        return Err("resolution dimensions must be positive".to_string());
+    }
+    Ok(UVec2::new(width, height))
 }
 
 #[cfg(test)]
@@ -724,6 +732,14 @@ mod tests {
             .expect("valid showcase arguments")
             .into_config()
             .expect("valid showcase configuration")
+    }
+
+    #[test]
+    fn resolution_parser_requires_positive_width_and_height() {
+        assert_eq!(resolution("2560x1440").unwrap(), UVec2::new(2560, 1440));
+        for invalid in ["2560", "0x720", "1280x0", "wide"] {
+            assert!(resolution(invalid).is_err(), "{invalid} should be rejected");
+        }
     }
 
     #[test]

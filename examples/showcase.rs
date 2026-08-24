@@ -1,6 +1,6 @@
 //! One water showcase: island, lake, ponds, ponds-many, river, and the
 //! open-ocean `anim-waves` scene behind a single `--scene` flag, with the
-//! profiling/capture CLI living in `bevy-bench`.
+//! self-contained profiling and capture CLI.
 
 mod common;
 mod config;
@@ -43,11 +43,10 @@ use bevy_aqua::{
 };
 #[cfg(feature = "spray")]
 use bevy_aqua::{SprayQuality, SpraySettings};
-use bevy_bench::{
-    BenchConfig, BenchPlugin, CaptureCamera, CaptureMode, CaptureProgress, CaptureSystems,
-    WindowedCapturePlugin, validate_headless_capture,
-};
 use clap::{Parser, ValueEnum};
+use common::capture::{
+    CaptureCamera, CaptureConfig, CaptureMode, CapturePlugin, CaptureProgress, CaptureSystems,
+};
 use config::{ShowcaseArgs, ShowcaseConfig};
 
 const WINDOW_SIZE: UVec2 = UVec2::new(1280, 720);
@@ -350,13 +349,14 @@ fn main() -> anyhow::Result<()> {
         screenshot,
         headless,
     } = arguments.into_config()?;
-    validate_headless_capture(
-        headless,
-        screenshot.is_some()
-            || demo.gpu_profile
-            || demo.flow_sequence_directory.is_some()
-            || demo.far_dolly_directory.is_some(),
-    )?;
+    let has_capture_destination = screenshot.is_some()
+        || demo.gpu_profile
+        || demo.flow_sequence_directory.is_some()
+        || demo.far_dolly_directory.is_some();
+    anyhow::ensure!(
+        !headless || has_capture_destination,
+        "--headless requires --screenshot, a capture sequence, or GPU profiling"
+    );
     let render_size = demo.profile_resolution.unwrap_or(if demo.gpu_profile {
         UVec2::new(1920, 1080)
     } else {
@@ -418,44 +418,23 @@ fn main() -> anyhow::Result<()> {
         render_size,
         present_mode,
     );
+    let capture_config = CaptureConfig {
+        warmup_frames,
+        size: render_size,
+        mode: mode.clone().unwrap_or_default(),
+        stride,
+    };
     if headless {
         let frame_rate = if demo.active_profile { 30.0 } else { 60.0 };
         app.add_plugins(DefaultPlugins.set(window_plugin).disable::<WinitPlugin>())
             .add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
                 1.0 / frame_rate,
-            )));
-        // BenchPlugin is inert for CaptureMode::None. Give profile-only runs
-        // a real offscreen target whose capture lies beyond the profile exit.
-        let profile_target = demo.gpu_profile && mode.is_none();
-        app.add_plugins(BenchPlugin(BenchConfig {
-            settle_frames: 0,
-            warmup_frames: if profile_target {
-                u32::MAX / 2
-            } else {
-                warmup_frames
-            },
-            size: render_size,
-            mode: if profile_target {
-                CaptureMode::Single {
-                    path: std::env::temp_dir().join("bevy-aqua-profile-target.png"),
-                }
-            } else {
-                mode.unwrap_or(CaptureMode::None)
-            },
-            stride,
-            print_diagnostics: false,
-        }));
+            )))
+            .add_plugins(CapturePlugin::headless(capture_config));
     } else {
         app.add_plugins(DefaultPlugins.set(window_plugin));
-        if let Some(mode) = mode {
-            app.add_plugins(WindowedCapturePlugin(BenchConfig {
-                settle_frames: 0,
-                warmup_frames,
-                size: render_size,
-                mode,
-                stride,
-                print_diagnostics: false,
-            }));
+        if mode.is_some() {
+            app.add_plugins(CapturePlugin::windowed(capture_config));
         }
     }
     if demo.water_enabled {
