@@ -33,7 +33,7 @@ bodies, and GPU surface queries.
 
 | bevy-aqua | Bevy | Rust | Verified target |
 |---|---|---|---|
-| 0.1 | 0.19 | 1.95+ | Desktop Vulkan on NVIDIA RTX 3070 |
+| 0.1 | 0.19 | 1.95+ | Desktop Vulkan and in browser WebGPU |
 
 The default `query` and `reflect` features enable GPU wave probes and planar
 reflections. The optional `spray` feature adds `bevy-aqua-spray` and `bevy_hanabi`,
