@@ -2,10 +2,10 @@
 //! resolved [`crate::WaterBody`] + [`crate::WaterShape`] entities.
 //!
 //! The camera-centred ring tiles are the only water mesh. Each texel
-//! resolves which body owns the point: `level_id` stores the surface level
-//! (r) and the one-based body slot (g); `flow` stores the per-texel river
-//! sample (xy current, z signed bank margin, w channel half-width). Bounded
-//! vertices read their level here and
+//! resolves which body owns the point: packed `maps` layer 0 stores the
+//! surface level (r) and the one-based body slot (g); layer 1 stores the
+//! per-texel river sample (xy current, z signed bank margin, w channel
+//! half-width). Bounded vertices read their level here and
 //! fragments resolve optics, banks, and culling from the slot parameters.
 
 use bevy::{
@@ -49,8 +49,7 @@ impl FieldParams {
 #[derive(Resource, Debug)]
 pub struct WaterFields {
     pub params: FieldParams,
-    pub level_id: Handle<Image>,
-    pub flow: Handle<Image>,
+    pub maps: Handle<Image>,
     /// Rebake scheduler: runs the CPU bake only when the body set changes.
     pub bakes: AmortizedBake<(bool, Vec<ResolvedWaterBody>)>,
 }
@@ -58,26 +57,20 @@ pub struct WaterFields {
 impl FromWorld for WaterFields {
     fn from_world(world: &mut World) -> Self {
         let mut images = world.resource_mut::<Assets<Image>>();
-        let mut level_id = Image::new_fill(
-            Extent3d::default(),
+        let mut maps = Image::new_fill(
+            Extent3d {
+                depth_or_array_layers: 2,
+                ..default()
+            },
             TextureDimension::D2,
-            &[0; 4], // one Rg16Float texel; new_fill tiles it over the image
-            TextureFormat::Rg16Float,
-            RenderAssetUsages::default(),
-        );
-        level_id.sampler = ImageSampler::linear();
-        let mut flow = Image::new_fill(
-            Extent3d::default(),
-            TextureDimension::D2,
-            &[0; 8], // one Rgba16Float texel
+            &[0; 8],
             TextureFormat::Rgba16Float,
             RenderAssetUsages::default(),
         );
-        flow.sampler = ImageSampler::linear();
+        maps.sampler = ImageSampler::linear();
         Self {
             params: FieldParams::none(),
-            level_id: images.add(level_id),
-            flow: images.add(flow),
+            maps: images.add(maps),
             bakes: AmortizedBake::new(),
         }
     }

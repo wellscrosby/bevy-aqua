@@ -213,7 +213,7 @@ fn lod_init(
         0.0,
     );
     layout.set_bed(bed.as_deref(), sea_level.0);
-    let (params, level_id, flow) = bevy_aqua_shore::bake(&[], false);
+    let (params, maps) = bevy_aqua_shore::bake(&[], false);
     let material = materials.add(CascadeMaterial {
         texture: texture.clone(),
         layout: layout.clone(),
@@ -226,8 +226,7 @@ fn lod_init(
         foam_pattern: foam_textures.pattern.clone(),
         fft_surface: fft_surface.clone(),
         fields: params,
-        field_level_id: images.add(level_id),
-        field_flow: images.add(flow),
+        field_maps: images.add(maps),
         reflection_a: fallback.0.clone(),
         reflection_b: fallback.0.clone(),
         reflections: bevy_aqua_core::PlanarReflectionParams::default(),

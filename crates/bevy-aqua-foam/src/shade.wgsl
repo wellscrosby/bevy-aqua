@@ -149,24 +149,27 @@ fn surface_foam_mask(
     // position so this module never touches per-invocation state.
     let offset = vec2(globals.time / 10.0) + sample_offset;
     let pattern_xz = advected_xz;
-    let near = textureSample(
+    let near = textureSampleLevel(
         foam_pattern,
         foam_pattern_sampler,
         (1.25 * pattern_xz + offset) / texture_scale,
+        0.0,
     ).r;
-    let far = textureSample(
+    let far = textureSampleLevel(
         foam_pattern,
         foam_pattern_sampler,
         (1.25 * pattern_xz + offset) / (2.0 * texture_scale),
+        0.0,
     ).r;
     var pattern = mix(near, far, alpha);
     let fine_scroll = FINE_FOAM_SCROLL_DIRECTION * globals.time / 17.0;
     let fine_coordinates =
         FINE_FOAM_ROTATION * (1.25 * pattern_xz + sample_offset) + fine_scroll;
-    let fine = textureSample(
+    let fine = textureSampleLevel(
         foam_pattern,
         foam_pattern_sampler,
         fine_coordinates / (FINE_FOAM_SCALE * texture_scale),
+        0.0,
     ).r;
     // Mean-one near-field modulation hides the 512-grid footprint without
     // changing the far-field pattern.

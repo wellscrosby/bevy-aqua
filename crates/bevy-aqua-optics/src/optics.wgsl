@@ -8,7 +8,7 @@
     mesh_view_bindings::{globals, lights, view},
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
-#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, sample_planar_reflection, surface}
+#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, sample_planar_reflection, screen_xz_footprint, surface}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
@@ -31,7 +31,7 @@ fn unresolved_wave_roughness(
     lighting_normal_strength: f32,
     filtered_detail_variance: f32,
 ) -> f32 {
-    let footprint = max(length(dpdx(world_xz)), length(dpdy(world_xz)));
+    let footprint = screen_xz_footprint();
     let unresolved_wavelength = 2.0 * footprint;
     var unresolved_variance = 0.0;
     var resolved_variance = 0.0;

@@ -156,7 +156,7 @@ fn crest_sss(world_xz: vec2<f32>, lod: u32, alpha: f32) -> f32 {
 }
 
 fn sample_detail_normal(uv: vec2<f32>) -> vec3<f32> {
-    let packed = textureSample(detail_normal, detail_sampler, uv);
+    let packed = textureSampleLevel(detail_normal, detail_sampler, uv, 0.0);
     let slope = 2.0 * packed.xy - vec2(1.0);
     let second_moment = 2.0 * packed.z;
     return vec3(slope, max(second_moment - dot(slope, slope), 0.0));

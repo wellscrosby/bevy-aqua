@@ -373,6 +373,8 @@ fn pass_table() -> Vec<pass::PassSpec> {
         key: QUERY,
         shader: pass::ShaderSource::Path(SHADER_PATH),
         entry_points: &[SAMPLE],
+        shader_defs: &[],
+        wgsl_entry: None,
         layout: BindGroupLayoutDescriptor::new(
             QUERY,
             &BindGroupLayoutEntries::sequential(

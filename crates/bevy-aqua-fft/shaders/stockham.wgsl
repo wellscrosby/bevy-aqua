@@ -40,21 +40,9 @@ fn transform(local_index: u32) {
     }
 }
 
+#ifdef FFT_VERTICAL
 @compute @workgroup_size(FFT_RESOLUTION, 1, 1)
-fn horizontal(
-    @builtin(local_invocation_id) local: vec3<u32>,
-    @builtin(workgroup_id) group: vec3<u32>,
-) {
-    let index = local.x;
-    let source = vec2<i32>(i32(reverseBits(index) >> 24u), i32(group.y));
-    bank_a[index] = textureLoad(source_field, source, i32(group.z), 0);
-    workgroupBarrier();
-    transform(index);
-    textureStore(target_field, vec2<i32>(i32(index), i32(group.y)), i32(group.z), bank_a[index]);
-}
-
-@compute @workgroup_size(FFT_RESOLUTION, 1, 1)
-fn vertical(
+fn main(
     @builtin(local_invocation_id) local: vec3<u32>,
     @builtin(workgroup_id) group: vec3<u32>,
 ) {
@@ -65,3 +53,19 @@ fn vertical(
     transform(index);
     textureStore(target_field, vec2<i32>(i32(group.y), i32(index)), i32(group.z), bank_a[index]);
 }
+#endif
+
+#ifndef FFT_VERTICAL
+@compute @workgroup_size(FFT_RESOLUTION, 1, 1)
+fn main(
+    @builtin(local_invocation_id) local: vec3<u32>,
+    @builtin(workgroup_id) group: vec3<u32>,
+) {
+    let index = local.x;
+    let source = vec2<i32>(i32(reverseBits(index) >> 24u), i32(group.y));
+    bank_a[index] = textureLoad(source_field, source, i32(group.z), 0);
+    workgroupBarrier();
+    transform(index);
+    textureStore(target_field, vec2<i32>(i32(index), i32(group.y)), i32(group.z), bank_a[index]);
+}
+#endif

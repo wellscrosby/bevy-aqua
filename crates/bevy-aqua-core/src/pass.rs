@@ -18,6 +18,7 @@ use bevy::{
         render_resource::*,
         renderer::{RenderContext, RenderDevice, RenderQueue},
     },
+    shader::ShaderDefVal,
 };
 
 /// Where one pass row's compute shader comes from: an asset path (usually
@@ -38,6 +39,14 @@ pub struct PassSpec {
     pub shader: ShaderSource,
     /// Queued once per entry point; looked up as `(key, entry)`.
     pub entry_points: &'static [&'static str],
+    /// Per-entry naga_oil defs, same length as `entry_points`, or empty.
+    ///
+    /// WebGPU's naga round-trip keeps one compute entry per module and can
+    /// rename functions, so multi-entry shaders specialize to a single `main`
+    /// and look the variants up by `entry_points`.
+    pub shader_defs: &'static [&'static [&'static str]],
+    /// WGSL compute function queued for every variant. `None` uses each lookup name.
+    pub wgsl_entry: Option<&'static str>,
     /// Sequential compute layout, generated from the entry list.
     pub layout: BindGroupLayoutDescriptor,
 }
@@ -64,14 +73,30 @@ impl Passes {
             .iter()
             .zip(shader_handles.iter().cloned())
             .map(|(spec, shader)| {
+                debug_assert!(
+                    spec.shader_defs.is_empty()
+                        || spec.shader_defs.len() == spec.entry_points.len()
+                );
                 spec.entry_points
                     .iter()
-                    .map(|entry| {
+                    .enumerate()
+                    .map(|(index, entry)| {
+                        let shader_defs = spec
+                            .shader_defs
+                            .get(index)
+                            .copied()
+                            .unwrap_or(&[])
+                            .iter()
+                            .copied()
+                            .map(ShaderDefVal::from)
+                            .collect();
+                        let wgsl_entry = spec.wgsl_entry.unwrap_or(*entry);
                         cache.queue_compute_pipeline(ComputePipelineDescriptor {
                             label: Some(Cow::Owned(format!("{}::{entry}", spec.key))),
                             layout: vec![spec.layout.clone()],
                             shader: shader.clone(),
-                            entry_point: Some(Cow::Borrowed(entry)),
+                            shader_defs,
+                            entry_point: Some(Cow::Borrowed(wgsl_entry)),
                             ..default()
                         })
                     })

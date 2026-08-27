@@ -37,7 +37,7 @@ struct FoamUniform {
 @group(0) @binding(2) var anim_waves: texture_2d_array<f32>;
 @group(0) @binding(3) var waves_sampler: sampler;
 @group(0) @binding(4) var bed_height: texture_2d<f32>;
-@group(0) @binding(5) var target_foam: texture_storage_2d_array<r16float, write>;
+@group(0) @binding(5) var target_foam: texture_storage_2d_array<r32float, write>;
 @group(0) @binding(6) var<uniform> foam: FoamUniform;
 @group(0) @binding(7) var fft_surface: texture_2d_array<f32>;
 
@@ -218,17 +218,25 @@ fn update(id: vec3<u32>, use_previous_layout: bool, dt: f32) {
     textureStore(target_foam, vec2<i32>(id.xy), i32(slice), vec4(density, 0.0, 0.0, 0.0));
 }
 
+#ifdef FOAM_REPROJECT_PREVIOUS
 @compute @workgroup_size(8, 8, 1)
-fn update_previous_layout(@builtin(global_invocation_id) id: vec3<u32>) {
-    update(id, true, foam.wave.x);
-}
-
-@compute @workgroup_size(8, 8, 1)
-fn reproject_previous_layout(@builtin(global_invocation_id) id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     update(id, true, 0.0);
 }
+#endif
 
+#ifdef FOAM_UPDATE_CURRENT
 @compute @workgroup_size(8, 8, 1)
-fn update_current_layout(@builtin(global_invocation_id) id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     update(id, false, foam.wave.x);
 }
+#endif
+
+#ifndef FOAM_REPROJECT_PREVIOUS
+#ifndef FOAM_UPDATE_CURRENT
+@compute @workgroup_size(8, 8, 1)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+    update(id, true, foam.wave.x);
+}
+#endif
+#endif

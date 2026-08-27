@@ -18,7 +18,7 @@
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
 
-#import aqua::cascade::{CREST_SSS_RANGE, CREST_SSS_UNCOMPRESSED, DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_FAR_TIER, DEBUG_MODE_FOAM, DEBUG_MODE_LIGHT_RADIANCE, DEBUG_MODE_REFLECTION, DEBUG_MODE_REFLECTION_FRACTION, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, DEBUG_MODE_WAVE_HEIGHT, LUMINANCE_EPSILON, LocalLightSample, MIN_NORMAL_Y, SAFE_LENGTH_SQUARED, advected_world, begin_invocation, capillary_resolved_weight, cascade_layout, effective_flow, far_tier_weight, field_params, godot_fresnel, invocation_extinction, invocation_ripple, invocation_river_state, invocation_scatter_scale, lod_count, owning_body, sample_displacement, sample_field_flow, sample_field_level, sample_planar_reflection, set_body_optics, set_effective_flow, set_effective_time, set_fragment_river, set_river_ripple, snap_and_transition, surface}
+#import aqua::cascade::{CREST_SSS_RANGE, CREST_SSS_UNCOMPRESSED, DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_FAR_TIER, DEBUG_MODE_FOAM, DEBUG_MODE_LIGHT_RADIANCE, DEBUG_MODE_REFLECTION, DEBUG_MODE_REFLECTION_FRACTION, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, DEBUG_MODE_WAVE_HEIGHT, LUMINANCE_EPSILON, LocalLightSample, MIN_NORMAL_Y, SAFE_LENGTH_SQUARED, advected_world, begin_invocation, capillary_resolved_weight, cascade_layout, effective_flow, far_tier_weight, field_params, godot_fresnel, invocation_extinction, invocation_ripple, invocation_river_state, invocation_scatter_scale, lod_count, owning_body, sample_displacement, sample_field_flow, sample_field_level, sample_planar_reflection, set_body_optics, set_effective_flow, set_effective_time, set_fragment_river, set_river_ripple, set_xz_footprint, snap_and_transition, surface}
 
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, crest_sss, detail_normal_sample, far_displacement, far_normal_cross, sample_fft_normal_cross}
 
@@ -501,6 +501,10 @@ fn compose_water(
 
 @fragment
 fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
+    set_xz_footprint(max(
+        length(dpdx(in.world_position.xz)),
+        length(dpdy(in.world_position.xz)),
+    ));
     // One shared tile set renders every scene: unclaimed texels discard
     // unless the Ocean resource is present, so localized scenes pay fill
     // only where their bodies (and the tiles themselves) exist.
