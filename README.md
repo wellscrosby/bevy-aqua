@@ -90,9 +90,9 @@ data; set them before the plugin starts.
 `AquaSettings` selects a `WaterOptics` preset and a `detail_strength` in
 `0..=2`. `WaterOptics::DEEP_OCEAN` is the default. Coastal, tropical, and
 clear-fresh presets are also provided. When the camera is below the local wave
-surface, Aqua hides the water mesh and composites the same extinction through a
-fullscreen volume pass. Fog only follows the underwater segment of each view
-ray. Crossing the surface is a hard cut.
+surface, Aqua composites the same extinction through a fullscreen volume pass
+and shades the mesh underside as a water-to-air window. Fog only follows the
+underwater segment of each view ray. Crossing the surface is a hard cut.
 
 `far_tier_start` and `far_tier_end`
 bound the reduced-cost shading transition in metres. Far shading keeps sun

@@ -2,9 +2,10 @@
 //!
 //! When the active camera is below the local wave surface (mean plane plus
 //! sampled displacement, or the mean plane when no wave sample is ready),
-//! cascade tiles are hidden and a fullscreen Core3d pass applies the same
-//! Beer-Lambert mix as the surface transmission path. Fog uses only the
-//! underwater segment of each view ray. Above water the pass is skipped.
+//! a fullscreen Core3d pass applies the same Beer-Lambert mix as the surface
+//! transmission path. The cascade mesh stays visible so the underside can
+//! shade Snell's window. Fog uses only the underwater segment of each view
+//! ray. Above water the pass is skipped.
 
 #![warn(unreachable_pub)]
 
@@ -40,7 +41,7 @@ impl Plugin for AquaVolumePlugin {
             .add_plugins(ExtractResourcePlugin::<ExtractedVolume>::default())
             .add_systems(
                 PostUpdate,
-                (ensure_camera_probe, detect_underwater, hide_surface)
+                (ensure_camera_probe, detect_underwater)
                     .chain()
                     .after(WaterBodiesResolved),
             );
@@ -213,20 +214,4 @@ fn detect_underwater(
         time: time.elapsed_secs(),
         caustics_image,
     };
-}
-
-fn hide_surface(
-    volume: Res<ExtractedVolume>,
-    mut tiles: Query<&mut Visibility, With<MeshMaterial3d<CascadeMaterial>>>,
-) {
-    let next = if volume.active {
-        Visibility::Hidden
-    } else {
-        Visibility::Inherited
-    };
-    for mut visibility in &mut tiles {
-        if *visibility != next {
-            *visibility = next;
-        }
-    }
 }

@@ -155,8 +155,8 @@ fn bed_water_depth(world_xz: vec2<f32>) -> f32 {
     return max(range.z - height, 0.0);
 }
 
-fn environment_irradiance() -> vec3<f32> {
-    var sample_direction = quat_rotate(volume.env_rotation, vec3(0.0, 1.0, 0.0));
+fn environment_along(direction: vec3<f32>) -> vec3<f32> {
+    var sample_direction = quat_rotate(volume.env_rotation, direction);
     sample_direction.y = max(sample_direction.y, 0.0);
     let length_squared = dot(sample_direction, sample_direction);
     sample_direction = select(
@@ -171,6 +171,10 @@ fn environment_irradiance() -> vec3<f32> {
         sample_direction,
         0.0,
     ).rgb * volume.environment.x;
+}
+
+fn environment_irradiance() -> vec3<f32> {
+    return environment_along(vec3(0.0, 1.0, 0.0));
 }
 
 fn scatter_colour(to_view: vec3<f32>, water_depth: f32) -> vec3<f32> {
@@ -251,10 +255,19 @@ fn fragment(
     let water_depth = select(max(volume.sea.x - world.y, 0.0), 0.0, clipped);
     let albedo_depth = bed_water_depth(select(world.xz, camera.xz, clipped));
     let extinction = depth_scaled_extinction(volume.extinction.rgb, water_depth);
+    // The opaque pass still contains the unrefracted above-water draw. The
+    // underside window is the copy that should remain. Drop that draw when
+    // the hit is in air, including holes the sheet did not cover.
+    let above_sheet = world.y > surface_y(world.xz) + 0.05;
+    let look_out = select(
+        world - camera,
+        vec3(0.0, 1.0, 0.0),
+        length(world - camera) < 1e-4,
+    );
     let lit_scene = select(
         apply_caustics(scene, world.xz, water_depth, extinction),
-        scene,
-        clipped,
+        environment_along(look_out),
+        clipped && above_sheet,
     );
     let colour = beer_lambert_mix(
         lit_scene,

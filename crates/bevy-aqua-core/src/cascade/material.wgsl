@@ -29,7 +29,7 @@
 #import bevy_aqua_core::deform::{deform_current}
 #import bevy_aqua_core::material::{BodyLightingState, CameraDepthDebug, CameraDepthPath, FoamState, LocalLightingState, MediumState, NearSurface, PrimaryLightState, SurfaceVertexOutput, TransmissionState}
 #import aqua::light::incident::{GODOT_NORMAL_FADE_RATE, GODOT_NORMAL_MINIMUM_STRENGTH, GODOT_SSS_MODIFIER, GODOT_WATER_ALBEDO, LUMINANCE_WEIGHTS, filtered_primary_light_color, ggx_distribution, local_light_contribution, resolve_primary_light, safe_normalize, sample_diffuse_environment, sample_environment, sample_local_light, smith_masking_shadowing, strongest_incident_directional_light, view_direction}
-#import aqua::optics::{camera_depth_path, deep_water_weight, empty_camera_depth_path, far_field_water, resolve_near_surface, resolve_transmission, sample_water_medium, unresolved_wave_roughness}
+#import aqua::optics::{camera_depth_path, deep_water_weight, empty_camera_depth_path, far_field_water, resolve_near_surface, resolve_transmission, sample_water_medium, shade_underside, unresolved_wave_roughness}
 
 @vertex
 fn vertex(vertex: Vertex) -> SurfaceVertexOutput {
@@ -500,7 +500,10 @@ fn compose_water(
 }
 
 @fragment
-fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
+fn fragment(
+    in: SurfaceVertexOutput,
+    @builtin(front_facing) is_front: bool,
+) -> @location(0) vec4<f32> {
     set_xz_footprint(max(
         length(dpdx(in.world_position.xz)),
         length(dpdy(in.world_position.xz)),
@@ -568,6 +571,14 @@ fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
     let surface_lod = u32(round(in.sample_data.x));
     let geometric_normal = safe_normalize(in.world_normal, vec3(0.0, 1.0, 0.0));
     let to_view = view_direction(in.world_position.xyz);
+    if !is_front {
+        // Same triangles from the air side would z-fight with the belly. Keep
+        // back faces only when the camera is under this fragment.
+        if view.world_position.y >= in.world_position.y {
+            discard;
+        }
+        return shade_underside(in, surface_lod, geometric_normal, to_view, mode);
+    }
     let far_diagnostic = mode == DEBUG_MODE_FAR_TIER;
     var far_tier = select(
         0.0,

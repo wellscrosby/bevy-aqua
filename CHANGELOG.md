@@ -6,7 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- Fullscreen underwater volume composite when the camera is below the local wave surface. The water mesh is hidden and the same `WaterOptics` Beer-Lambert mix lights the scene, including caustics on reconstructed positions. Fog uses only the underwater segment of each view ray.
+- Fullscreen underwater volume composite when the camera is below the local wave surface. The same `WaterOptics` Beer-Lambert mix lights the scene, including caustics on reconstructed positions. Fog uses only the underwater segment of each view ray.
+- Two-sided cascade mesh with a water-to-air underside: Snell's window from the environment map, plus one warped transmission sample for above-water meshes that sit behind the sheet. Unrefracted above-water draws are not kept in the composite.
 
 ### Changed
 

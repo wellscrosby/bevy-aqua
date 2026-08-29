@@ -8,7 +8,7 @@
     mesh_view_bindings::{globals, lights, view},
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
-#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, sample_planar_reflection, screen_xz_footprint, surface}
+#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, sample_planar_reflection, screen_xz_footprint, surface}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
@@ -495,5 +495,99 @@ fn resolve_transmission(
         // scatter endpoint without a refracted depth or opaque-colour sample.
     }
     return TransmissionState(body, vec4(0.0), false);
+}
+
+const WATER_IOR: f32 = 1.333;
+const UNDERSIDE_AIR_MARGIN: f32 = 0.05;
+const UNDERSIDE_WARP: f32 = 0.12;
+
+fn reconstruct_world_from_uv(uv: vec2<f32>, raw_depth: f32) -> vec3<f32> {
+    let ndc = vec3(uv * vec2(2.0, -2.0) + vec2(-1.0, 1.0), raw_depth);
+    let world = view.world_from_clip * vec4(ndc, 1.0);
+    return world.xyz / max(world.w, LUMINANCE_EPSILON);
+}
+
+fn water_air_fresnel(cos_theta: f32) -> f32 {
+    let m = 1.0 - clamp(cos_theta, 0.0, 1.0);
+    return mix(surface.fresnel.x, 1.0, m * m * m * m * m);
+}
+
+fn underside_scatter(to_view: vec3<f32>, water_depth: f32) -> vec3<f32> {
+    let view_vertical = abs(to_view.y);
+    let deep_body_albedo = mix(
+        surface.grazing_color.rgb,
+        surface.deep_color.rgb,
+        view_vertical,
+    );
+    return depth_aware_body_albedo(water_depth, deep_body_albedo)
+        * sample_diffuse_environment(vec3(0.0, 1.0, 0.0))
+        * invocation_scatter_scale();
+}
+
+// Water-to-air interface. The cubemap lookup follows Snell's law. Above-water
+// meshes come from one warped transmission tap and replace the cubemap when
+// the hit is behind the sheet and in air. The unrefracted UV is never shown,
+// so the pinhole draw cannot sit under the warped copy.
+fn shade_underside(
+    in: SurfaceVertexOutput,
+    surface_lod: u32,
+    geometric_normal: vec3<f32>,
+    to_view: vec3<f32>,
+    mode: u32,
+) -> vec4<f32> {
+    let near = resolve_near_surface(in, surface_lod, geometric_normal, 0.0, mode);
+    let water_normal = safe_normalize(-near.normal, vec3(0.0, -1.0, 0.0));
+    let incident = -to_view;
+    let transmitted = refract(incident, water_normal, WATER_IOR);
+    let tir = dot(transmitted, transmitted) < LUMINANCE_EPSILON;
+    let water_depth = blended_water_depth(in.undisplaced_xz);
+    let reflected = underside_scatter(to_view, water_depth);
+    if tir {
+        return vec4(reflected, 1.0);
+    }
+
+    let cos_theta = max(dot(-incident, water_normal), 0.0);
+    let fresnel = water_air_fresnel(cos_theta);
+    let roughness = min(max(surface.reflection.w, 0.05), 1.0);
+    var window = sample_environment(transmitted, geometric_normal, roughness);
+    if lights.n_directional_lights > 0u {
+        let light = lights.directional_lights[0u];
+        let light_direction = safe_normalize(
+            light.direction_to_light,
+            vec3(0.0, 1.0, 0.0),
+        );
+        let sun_color = filtered_primary_light_color(
+            in.world_position,
+            light.direction_to_light,
+            light.sun_disk_angular_size,
+            light.color.rgb,
+        ) * view.exposure;
+        let disc = pow(max(dot(transmitted, light_direction), 0.0), 256.0);
+        window += sun_color * disc;
+    }
+
+#ifdef DEPTH_PREPASS
+    let viewport_origin = view.viewport.xy;
+    let viewport_size = view.viewport.zw;
+    let screen_uv = clamp(
+        (in.position.xy - viewport_origin) / viewport_size,
+        vec2(0.0),
+        vec2(1.0),
+    );
+    let warped_uv = screen_uv + surface.debug.y * near.lighting_normal.xz * UNDERSIDE_WARP;
+    if all(warped_uv >= vec2(0.0)) && all(warped_uv <= vec2(1.0)) {
+        let warped_pixel = warped_uv * (viewport_size - vec2(1.0)) + viewport_origin;
+        let warped_position = vec4(warped_pixel, in.position.zw);
+        let warped_depth = prepass_utils::prepass_depth(warped_position, 0u);
+        let behind_surface = warped_depth < in.position.z;
+        let hit = reconstruct_world_from_uv(warped_uv, warped_depth);
+        let in_air = hit.y > in.world_position.y + UNDERSIDE_AIR_MARGIN;
+        if warped_depth > 0.0 && behind_surface && in_air {
+            window = opaque_background(warped_uv);
+        }
+    }
+#endif
+
+    return vec4(mix(window, reflected, fresnel), 1.0);
 }
 
