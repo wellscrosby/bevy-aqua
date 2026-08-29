@@ -65,7 +65,7 @@ SOFTWARE.
 
 ## Reference scope
 
-Crest references include `Scripts/OceanBuilder.cs`, `Scripts/LodData/LodTransform.cs`, `Shaders/Ocean.shader`, `Shaders/OceanEmission.hlsl`, `Shaders/OceanFoam.hlsl`, and the shipped `Materials/Ocean.mat`. Aqua's source comments and tests record retained implementation-specific divergences where they matter.
+Crest references include `Scripts/OceanBuilder.cs`, `Scripts/LodData/LodTransform.cs`, `Shaders/Ocean.shader`, `Shaders/OceanEmission.hlsl`, `Shaders/OceanFoam.hlsl`, `Shaders/Underwater/UnderwaterEffect.hlsl`, and the shipped `Materials/Ocean.mat`. Aqua's source comments and tests record retained implementation-specific divergences where they matter.
 
 GodotOceanWaves references include `assets/shaders/spatial/water.gdshader` and its FFT spectrum/resolve shaders. Aqua adapts these mechanisms to Bevy's pre-exposed lighting and render graph rather than claiming engine or visual parity.
 

@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Fullscreen underwater volume composite when the camera is below the local wave surface. The water mesh is hidden and the same `WaterOptics` Beer-Lambert mix lights the scene, including caustics on reconstructed positions. Fog uses only the underwater segment of each view ray.
+
+### Changed
+
+- GPU wave probes always run so the underwater pass can follow local wave height. The `query` feature still re-exports `WaveQuery` and `WaveSurface` from the facade.
+- Underwater scatter uses the view environment map and bed-depth body albedo, matching the surface mix endpoint without SSS.
+
 ## [0.1.2] - 2026-08-24
 
 ### Fixed

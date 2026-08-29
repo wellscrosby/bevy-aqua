@@ -82,6 +82,15 @@ fn unresolved_wave_roughness(
     return min(sqrt(max(slope_variance, 0.0)), surface.reflection.w);
 }
 
+fn beer_lambert_mix(
+    scene_colour: vec3<f32>,
+    scatter_colour: vec3<f32>,
+    extinction: vec3<f32>,
+    path_length: f32,
+) -> vec3<f32> {
+    return mix(scene_colour, scatter_colour, 1.0 - exp(-extinction * path_length));
+}
+
 fn deep_water_weight(water_depth: f32) -> f32 {
     return smoothstep(0.35, surface.shallow_color.a, water_depth);
 }
@@ -440,8 +449,12 @@ fn resolve_transmission(
         // Crest `OceanEmission.hlsl:254-266`: per-channel Beer-Lambert fog.
         // The colour ramp emerges from extinction; there is no authored ramp.
         let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
-        let alpha = 1.0 - exp(-invocation_extinction() * depth_debug.path_length);
-        body = mix(lit_scene, scatter_colour, alpha);
+        body = beer_lambert_mix(
+            lit_scene,
+            scatter_colour,
+            invocation_extinction(),
+            depth_debug.path_length,
+        );
         if mode == DEBUG_MODE_BEER_LAMBERT {
             return TransmissionState(body, vec4(body, 1.0), true);
         }
@@ -470,8 +483,12 @@ fn resolve_transmission(
             );
             let scene_colour = opaque_background(background_uv);
             let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
-            let alpha = 1.0 - exp(-extinction * depth_debug.path_length);
-            body = mix(lit_scene, scatter_colour, alpha);
+            body = beer_lambert_mix(
+                lit_scene,
+                scatter_colour,
+                extinction,
+                depth_debug.path_length,
+            );
         }
         // A clear depth prepass has no transmissive background. Preserve the
         // deep-water body there. Once all channels transmit <= 2^-10, use the same

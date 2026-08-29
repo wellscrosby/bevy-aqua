@@ -1,7 +1,8 @@
 //! Camera-centred ocean rendering for Bevy.
 //!
 //! Aqua provides concentric ocean geometry, analytic and FFT displacement,
-//! depth-aware transmission, reflections, foam, and shallow-water attenuation.
+//! depth-aware transmission, an underwater volume composite, reflections,
+//! foam, and shallow-water attenuation.
 //! One world unit is one metre.
 //!
 //! # Setup
@@ -17,8 +18,10 @@
 //! Insert a [`BedHeightMap`] built from the terrain heightfield for wave
 //! attenuation and shoreline foam. Without one, water uses the deep default.
 //!
-//! With the `query` feature, add `WaveQuery` to floating entities to receive
-//! `WaveSurface` samples from the same cascades used for rendering.
+//! Add `WaveQuery` to floating entities to receive `WaveSurface` samples from
+//! the same cascades used for rendering. The `query` feature re-exports those
+//! types from this crate; GPU probes always run because the underwater pass
+//! samples height at the camera.
 //!
 //! # Supported facade
 //!
@@ -75,6 +78,7 @@ impl Plugin for AquaPlugin {
         app.add_plugins(bevy_aqua_waves::AquaWavesPlugin);
         app.add_plugins(bevy_aqua_foam::AquaFoamPlugin);
         app.add_plugins(bevy_aqua_shore::AquaShorePlugin);
+        app.add_plugins(bevy_aqua_volume::AquaVolumePlugin);
         #[cfg(feature = "motion")]
         app.add_plugins(bevy_aqua_motion::AquaMotionPlugin);
         #[cfg(feature = "reflect")]
@@ -87,8 +91,6 @@ impl Plugin for AquaPlugin {
             PostUpdate,
             ocean::prune.after(bevy_aqua_core::WaterBodiesResolved),
         );
-        #[cfg(feature = "query")]
-        app.add_plugins(bevy_aqua_query::AquaQueryPlugin);
         app.add_plugins(bevy::pbr::MaterialPlugin::<CascadeMaterial>::default())
             .init_resource::<AquaDebug>()
             .init_resource::<AquaSettings>()

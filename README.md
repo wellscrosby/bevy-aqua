@@ -12,7 +12,7 @@ bodies, and GPU surface queries.
 
 - Five camera-centred displacement cascades with smooth LOD blending.
 - Crest-style analytic waves or Tessendorf spectral waves.
-- Beer-Lambert transmission, refraction, reflections, and scene lighting.
+- Beer-Lambert transmission, refraction, reflections, scene lighting, and a fullscreen underwater volume composite.
 - Persistent whitecaps and shoreline foam.
 - Static terrain heightfields for shoaling and shallow-water optics.
 - Bounded ponds, lakes, and river corridors with per-body optics.
@@ -35,7 +35,9 @@ bodies, and GPU surface queries.
 |---|---|---|---|
 | 0.1 | 0.19 | 1.95+ | Desktop Vulkan and in browser WebGPU |
 
-The default `query` and `reflect` features enable GPU wave probes and planar
+The default `query` feature re-exports `WaveQuery` and `WaveSurface` from the
+facade. GPU probes always run because the underwater composite follows local
+wave height at the camera. The default `reflect` feature enables planar
 reflections. The optional `spray` feature adds `bevy-aqua-spray` and `bevy_hanabi`,
 implies `query`, and defaults to `Off` at runtime. Web, mobile, and other
 desktop APIs are not yet verified.
@@ -87,7 +89,12 @@ data; set them before the plugin starts.
 
 `AquaSettings` selects a `WaterOptics` preset and a `detail_strength` in
 `0..=2`. `WaterOptics::DEEP_OCEAN` is the default. Coastal, tropical, and
-clear-fresh presets are also provided. `far_tier_start` and `far_tier_end`
+clear-fresh presets are also provided. When the camera is below the local wave
+surface, Aqua hides the water mesh and composites the same extinction through a
+fullscreen volume pass. Fog only follows the underwater segment of each view
+ray. Crossing the surface is a hard cut.
+
+`far_tier_start` and `far_tier_end`
 bound the reduced-cost shading transition in metres. Far shading keeps sun
 and reflections while omitting depth, foam, and sampled subsurface detail.
 `reflections` selects the default planar mirror views or the byte-compatible cubemap-only path. Mark terrain or a
@@ -138,7 +145,7 @@ shallow-water attenuation. Moving a body or a transformed ancestor rebuilds
 the shared shoreline fields, so body transforms are intended to change
 infrequently.
 
-With the default `query` feature enabled, add `WaveQuery` to an entity whose
+With the `query` feature, add `WaveQuery` to an entity whose
 transform sits on the owning surface's mean plane. Aqua refreshes its
 `WaveSurface` with relative displacement. `WaveSurface::valid` is false when
 no ocean or bounded body owns the point. GPU samples arrive with about one

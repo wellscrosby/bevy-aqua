@@ -322,12 +322,15 @@ pub struct SurfaceParams {
 }
 
 impl SurfaceParams {
+    /// Metric depth packed into `shallow_color.a`, where coastal scatter
+    /// reaches the deep-water body colour.
+    pub const SHALLOW_BLEND_DEPTH: f32 = 7.0;
+
     /// Applies one optics preset's colours and extinction to the uniform.
     pub fn apply_optics(&mut self, optics: &WaterOptics) {
         self.deep_color = optics.deep_color.extend(1.0);
         self.grazing_color = optics.grazing_color.extend(1.0);
-        // Alpha is the metric depth at which coastal scatter reaches deep water.
-        self.shallow_color = optics.shallow_color.extend(7.0);
+        self.shallow_color = optics.shallow_color.extend(Self::SHALLOW_BLEND_DEPTH);
         self.fog_density = optics.extinction.extend(0.0);
         self.sss_tint = optics.sss_tint.extend(0.0);
     }
@@ -339,7 +342,7 @@ impl Default for SurfaceParams {
             // Accepted Crest shader-property profile; see the Ocean.mat divergence above.
             deep_color: Vec4::new(0.0, 0.002_695_407_3, 0.169_811_31, 1.0),
             grazing_color: Vec4::new(0.0, 0.003_921_569, 0.168_627_4, 1.0),
-            shallow_color: Vec4::new(0.012, 0.13, 0.115, 7.0),
+            shallow_color: Vec4::new(0.012, 0.13, 0.115, Self::SHALLOW_BLEND_DEPTH),
             // Water F0, Godot Fresnel power, shipped Crest specular strength, reserved.
             fresnel: Vec4::new(0.020_373_19, 5.0, 1.0, 0.0),
             // FFT flag, micro-roughness strength, daylight lux, maximum roughness.
@@ -472,6 +475,7 @@ struct ShaderLibraries {
 pub fn add_shader(app: &mut App) {
     embedded_asset!(app, "cascade/common.wgsl");
     embedded_asset!(app, "cascade/river.wgsl");
+    embedded_asset!(app, "cascade/waves_sample.wgsl");
     embedded_asset!(app, "cascade/deform.wgsl");
     embedded_asset!(app, "cascade/types.wgsl");
     embedded_asset!(app, "cascade/material.wgsl");
@@ -479,6 +483,7 @@ pub fn add_shader(app: &mut App) {
     let handles = vec![
         server.load("embedded://bevy_aqua_core/cascade/common.wgsl"),
         server.load("embedded://bevy_aqua_core/cascade/river.wgsl"),
+        server.load("embedded://bevy_aqua_core/cascade/waves_sample.wgsl"),
         server.load("embedded://bevy_aqua_core/cascade/deform.wgsl"),
         server.load("embedded://bevy_aqua_core/cascade/types.wgsl"),
     ];
