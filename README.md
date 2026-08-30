@@ -18,6 +18,7 @@ bodies, and GPU surface queries.
 - Bounded ponds, lakes, and river corridors with per-body optics.
 - GPU `WaveQuery` samples for buoyancy and gameplay.
 - Optional budgeted Hanabi spray.
+- Native desktop and browser WebGPU/Wasm rendering.
 
 ## Highlights
 
@@ -33,12 +34,15 @@ bodies, and GPU surface queries.
 
 | bevy-aqua | Bevy | Rust | Verified target |
 |---|---|---|---|
-| 0.1 | 0.19 | 1.95+ | Desktop Vulkan and in browser WebGPU |
+| 0.1 | 0.19 | 1.95+ | Desktop Vulkan and browser WebGPU (Wasm) |
+
+Browser WebGPU/Wasm support was contributed by
+[@wellscrosby](https://github.com/wellscrosby) in [#1](https://github.com/sayhisam1/bevy-aqua/pull/1).
 
 The default `query` and `reflect` features enable GPU wave probes and planar
 reflections. The optional `spray` feature adds `bevy-aqua-spray` and `bevy_hanabi`,
-implies `query`, and defaults to `Off` at runtime. Web, mobile, and other
-desktop APIs are not yet verified.
+implies `query`, and defaults to `Off` at runtime. Mobile and other desktop APIs
+are not yet verified.
 
 ## Quick start
 
