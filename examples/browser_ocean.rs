@@ -39,7 +39,7 @@ fn main() {
         })
         .insert_resource(AquaSettings {
             reflections: ReflectionMode::Planar {
-                scale: 0.25,
+                scale: 0.5,
                 distortion: 0.02,
             },
             caustics: None,
