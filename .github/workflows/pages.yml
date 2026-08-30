@@ -1,0 +1,169 @@
+name: Deploy WebGPU examples
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/pages.yml"
+      - "Cargo.toml"
+      - "crates/**"
+      - "docs/images/examples/**"
+      - "examples/**"
+      - "src/**"
+  workflow_dispatch:
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build and deploy gallery
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build WebGPU examples
+        run: cargo build --release --target wasm32-unknown-unknown --examples
+
+      - name: Install matching wasm-bindgen CLI
+        run: |
+          version="$(
+            cargo tree --target wasm32-unknown-unknown -p wasm-bindgen --depth 0 |
+              sed -n 's/^wasm-bindgen v//p'
+          )"
+          test -n "$version"
+          cargo install wasm-bindgen-cli --version "$version" --locked
+
+      - name: Assemble static gallery
+        run: |
+          examples=(
+            ocean
+            spectral_waves
+            foam
+            bounded_water
+            river
+            terrain_bed
+            water_optics
+            planar_reflection
+            wave_query
+          )
+          descriptions=(
+            "Minimal analytic ocean"
+            "FFT spectral wave producer"
+            "Persistent whitecaps on rough water"
+            "Local circular and polygonal water bodies"
+            "Curved river flow with changing width and speed"
+            "Terrain height input and shallow-water optics"
+            "Water appearance presets shown side by side"
+            "Planar reflection of marked scene geometry"
+            "GPU surface queries driving a procedural buoy"
+          )
+
+          mkdir -p public/screenshots
+          cp docs/images/examples/*.jpg public/screenshots/
+          touch public/.nojekyll
+
+          cat > public/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>bevy-aqua WebGPU examples</title>
+            <style>
+              :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+              body { margin: 0; background: #07141d; color: #eaf6ff; }
+              main { max-width: 1120px; margin: auto; padding: 2rem; }
+              h1 { margin-bottom: .35rem; }
+              .note { color: #a9c3d3; margin-bottom: 2rem; }
+              .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+              .card { overflow: hidden; color: inherit; text-decoration: none; border: 1px solid #254657; border-radius: 12px; background: #102633; transition: transform .15s, border-color .15s; }
+              .card:hover { transform: translateY(-2px); border-color: #69c5ed; }
+              .card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+              .card div { padding: 1rem; }
+              .card strong { display: block; margin-bottom: .35rem; }
+              .card span { color: #b7cfdb; }
+            </style>
+          </head>
+          <body><main>
+            <h1>bevy-aqua WebGPU examples</h1>
+            <p class="note">Choose a focused scene. A WebGPU-capable browser and GPU are required.</p>
+            <div class="grid">
+          HTML
+
+          for index in "${!examples[@]}"; do
+            example="${examples[$index]}"
+            description="${descriptions[$index]}"
+            cat >> public/index.html <<HTML
+              <a class="card" href="./$example/">
+                <img src="./screenshots/$example.jpg" alt="$description">
+                <div><strong>$example</strong><span>$description</span></div>
+              </a>
+          HTML
+          done
+
+          cat >> public/index.html <<'HTML'
+            </div>
+          </main></body>
+          </html>
+          HTML
+
+          for example in "${examples[@]}"; do
+            mkdir -p "public/$example"
+            wasm-bindgen               --target web               --out-dir "public/$example"               --out-name "$example"               "target/wasm32-unknown-unknown/release/examples/$example.wasm"
+
+            cat > "public/$example/index.html" <<HTML
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>bevy-aqua — $example</title>
+            <style>
+              html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #07141d; }
+              canvas { display: block; width: 100vw !important; height: 100vh !important; }
+              #status { position: fixed; inset: 0; display: grid; place-items: center; color: white; font: 1rem system-ui, sans-serif; background: center / cover url('../screenshots/$example.jpg'); }
+              #status span { padding: .8rem 1rem; border-radius: 8px; background: rgb(0 0 0 / 70%); }
+            </style>
+          </head>
+          <body>
+            <div id="status"><span>Loading $example…</span></div>
+            <script type="module">
+              import init from './$example.js';
+              const status = document.querySelector('#status');
+              if (!navigator.gpu) {
+                status.querySelector('span').textContent = 'This example requires a WebGPU-capable browser.';
+              } else {
+                init()
+                  .then(() => status.remove())
+                  .catch((error) => {
+                    console.error(error);
+                    status.querySelector('span').textContent = 'The example failed to start. See the browser console.';
+                  });
+              }
+            </script>
+          </body>
+          </html>
+          HTML
+          done
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
