@@ -23,7 +23,7 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
-      - run: cargo test --workspace --lib --locked
+      - run: cargo test --workspace --lib
 
   wasm:
     name: Check browser WebGPU example
@@ -34,4 +34,4 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --locked --target wasm32-unknown-unknown --example browser_ocean
+      - run: cargo check --target wasm32-unknown-unknown --example browser_ocean
