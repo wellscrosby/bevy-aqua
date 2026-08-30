@@ -159,35 +159,40 @@ probe, emitter, particle-rate, distance, and projected-screen-coverage budgets.
 They reuse `WaveSurface::crest` and bed depth rather than adding a spray fluid
 simulation.
 
-## Repository showcase
+## Examples
 
-From a repository checkout:
+The examples are small, fixed scenes. Each one demonstrates one public feature
+without command-line configuration, external assets, or platform-specific
+source code.
+
+| Example | Demonstrates |
+|---|---|
+| `ocean` | Minimal analytic ocean |
+| `spectral_waves` | FFT spectral wave producer |
+| `foam` | Persistent whitecaps on rough water |
+| `bounded_water` | Local circular and polygonal water bodies |
+| `river` | Curved river flow with changing width and speed |
+| `terrain_bed` | Terrain height input, shoaling, and shallow-water optics |
+| `water_optics` | Water appearance presets shown side by side |
+| `planar_reflection` | Planar reflection of marked scene geometry |
+| `wave_query` | GPU surface queries driving a procedural buoy |
+
+Run any scene natively:
 
 ```sh
-cargo run --release --example showcase
-cargo run --release --example showcase -- --wave-backend fft --sea-state moderate
-cargo run --release --example showcase -- --scene river
-cargo run --release --example showcase -- \
-  --headless --time 12 --screenshot /tmp/aqua-island.png
-cargo run --release --features spray --example showcase -- \
-  --scene island --near-shore --sea-state rough --spray high
+cargo run --example ocean
 ```
 
-Scene recipes provide useful defaults. Explicit CLI values override them:
+The same source runs with browser WebGPU:
 
-| `--scene` | Purpose and built-in recipe |
-|---|---|
-| `island` | Default terrain and ocean |
-| `lake` | Calm water, 1.2 m/s current, 25 degree wind |
-| `reflection-lake` | Calm planar-reflection view with a large buoy (local test asset required) |
-| `ponds` / `ponds-many` | Two presentation ponds or ten profiling ponds, using clear-fresh optics |
-| `river` | Clear-fresh river and basin, calm water, 20 degree wind |
-| `anim-waves` | Open-ocean flight with optional buoy and reflection-probe views |
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-server-runner
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-server-runner \
+  cargo run --target wasm32-unknown-unknown --example ocean
+```
 
-`--profile-pose` selects its matching scene as well as its camera. Non-default
-values under the `Open-ocean scene` help heading require `--scene anim-waves`
-or an open-ocean profile pose. Run the showcase with `--help` for grouped
-presentation, water, diagnostic, capture, and profiling flags.
+See [`examples/README.md`](examples/README.md) for the full command list.
 
 ## AI disclosure
 

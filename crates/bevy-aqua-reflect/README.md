@@ -12,11 +12,11 @@ Select `ReflectionMode::Cubemap` for the cubemap-only path, or
 
 ## GPU budget
 
-Measured on an NVIDIA RTX 3070 at 2560x1440 with the island terrain and
-atmosphere, 300 measured frames after 300 warmup frames. The command was
-`cargo run --release --example showcase -- --scene island --reflections
-<mode> --gpu-profile --resolution 2560x1440 --ui-off`. Values are medians of
-three paired runs from Bevy's reported GPU span sum.
+Measured on an NVIDIA RTX 3070 at 2560x1440 with the former fixed island
+profiling scene, using 300 measured frames after 300 warmup frames. Values are
+medians of three paired runs from Bevy's reported GPU span sum. Run
+`cargo run --release --example planar_reflection` for the current focused
+reflection example; it is a visual example rather than the historical benchmark.
 
 | mode | reported span sum (ms) | paired reflection delta (ms) |
 | --- | ---: | ---: |

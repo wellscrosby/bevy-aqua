@@ -4,7 +4,7 @@
 //!
 //! Adding [`AquaMotionPlugin`] enables Bevy's `MotionVectorPrepass` on the
 //! camera marked [`bevy_aqua_core::OceanView`]. For a temporary runtime spike gate,
-//! run the root showcase with `cargo run --features motion --example showcase`.
+//! run `cargo run --features motion --example ocean`.
 //! Set `RUST_LOG=bevy_aqua_motion=trace,wgpu_core=warn` to see the queue/draw spans.
 //! Add or remove `DepthPrepass` on that camera to compare the depth-feature
 //! variants; Aqua's motion item always keeps depth writes disabled.
