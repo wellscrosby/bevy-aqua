@@ -76,7 +76,7 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             shader: pass::ShaderSource::Path(COMBINE_SHADER_PATH),
             entry_points: COMBINE_ENTRIES,
             shader_defs: &[
-                &[],
+                &["COMBINE_0"],
                 &["COMBINE_1"],
                 &["COMBINE_2"],
                 &["COMBINE_3"],

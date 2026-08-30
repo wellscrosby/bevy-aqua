@@ -61,6 +61,10 @@ pub struct Passes {
 impl Passes {
     /// Loads the shaders and queues one pipeline per entry point. Call once at
     /// `RenderStartup` from the module's pass table.
+    ///
+    /// # Panics
+    ///
+    /// Panics when nonempty shader definitions do not match the entry-point count.
     pub fn new(asset_server: &AssetServer, cache: &PipelineCache, specs: Vec<PassSpec>) -> Self {
         let shader_handles: Vec<Handle<Shader>> = specs
             .iter()
@@ -73,9 +77,13 @@ impl Passes {
             .iter()
             .zip(shader_handles.iter().cloned())
             .map(|(spec, shader)| {
-                debug_assert!(
+                assert!(
                     spec.shader_defs.is_empty()
-                        || spec.shader_defs.len() == spec.entry_points.len()
+                        || spec.shader_defs.len() == spec.entry_points.len(),
+                    "PassSpec `{}` has {} shader-def rows for {} entry points",
+                    spec.key,
+                    spec.shader_defs.len(),
+                    spec.entry_points.len(),
                 );
                 spec.entry_points
                     .iter()

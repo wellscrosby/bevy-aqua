@@ -85,13 +85,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 3u); }
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 4u); }
 #endif
-#ifndef COMBINE_1
-#ifndef COMBINE_2
-#ifndef COMBINE_3
-#ifndef COMBINE_4
+#ifdef COMBINE_0
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 0u); }
-#endif
-#endif
-#endif
 #endif
