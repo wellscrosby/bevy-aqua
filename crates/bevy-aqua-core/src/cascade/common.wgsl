@@ -237,6 +237,7 @@ fn sample_planar_reflection(
 // that bake one. Vertex and fragment stages set it before sampling.
 var<private> effective_flow: vec2<f32> = vec2(0.0, 0.0);
 var<private> effective_time: f32 = 0.0;
+// Conservative world-XZ metres covered by one screen pixel; nonnegative.
 var<private> xz_footprint: f32 = 0.0;
 
 fn set_xz_footprint(value: f32) {
@@ -245,6 +246,14 @@ fn set_xz_footprint(value: f32) {
 
 fn screen_xz_footprint() -> f32 {
     return xz_footprint;
+}
+
+// Analytic texture LOD: dUV/dpixel is the world-XZ footprint divided by
+// metres per UV repeat, and mip LOD is log2(texels covered per pixel).
+fn screen_texture_lod(metres_per_repeat: f32, texture_width: u32) -> f32 {
+    let texels_per_pixel =
+        screen_xz_footprint() * f32(texture_width) / max(metres_per_repeat, 1e-6);
+    return max(log2(max(texels_per_pixel, 1.0)), 0.0);
 }
 
 /// Ripple-strength multiplier at the current fragment: 1.0 everywhere except

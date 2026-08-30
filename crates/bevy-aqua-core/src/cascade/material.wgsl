@@ -501,6 +501,8 @@ fn compose_water(
 
 @fragment
 fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
+    // Position derivatives measure adjacent fragments in world XZ. Their
+    // maximum length conservatively bounds metres per screen pixel for LOD.
     set_xz_footprint(max(
         length(dpdx(in.world_position.xz)),
         length(dpdy(in.world_position.xz)),
