@@ -168,18 +168,15 @@ fn fields_bake_system(
     if !fields.bakes.maintain(&key) {
         return;
     }
-    let (params, level_id, flow) = bake(&bodies.0, ocean.is_some());
-    let level_handle = images.add(level_id);
-    let flow_handle = images.add(flow);
+    let (params, maps) = bake(&bodies.0, ocean.is_some());
+    let maps_handle = images.add(maps);
     let material_handle = data.material();
     if let Some(mut material) = materials.get_mut(&material_handle) {
         material.fields = params;
-        material.field_level_id = level_handle.clone();
-        material.field_flow = flow_handle.clone();
+        material.field_maps = maps_handle.clone();
     }
     fields.params = params;
-    fields.level_id = level_handle;
-    fields.flow = flow_handle;
+    fields.maps = maps_handle;
 }
 
 fn decorate_bodies(mut commands: Commands, bodies: Query<Entity, Added<WaterBody>>) {

@@ -134,13 +134,10 @@ pub struct CascadeMaterial {
     /// level+slot map, and per-texel flow.
     #[uniform(15)]
     pub fields: FieldParams,
-    /// Baked surface level (r) and body slot (g) map.
-    #[texture(16)]
+    /// Packed field maps: layer 0 is level+slot, layer 1 is river flow.
+    #[texture(16, dimension = "2d_array")]
     #[sampler(17)]
-    pub field_level_id: Handle<Image>,
-    /// Baked per-texel river flow map.
-    #[texture(18)]
-    pub field_flow: Handle<Image>,
+    pub field_maps: Handle<Image>,
     #[texture(19)]
     #[sampler(20)]
     pub reflection_a: Handle<Image>,

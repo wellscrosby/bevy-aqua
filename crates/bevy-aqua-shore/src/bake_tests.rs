@@ -13,8 +13,18 @@ fn f16_bits_to_f32(bits: u16) -> f32 {
     sign * (1.0 + fraction as f32 / 1024.0) * 2.0_f32.powf(exponent as f32 - 15.0)
 }
 
-fn read_texel(image: &Image, column: u32, row: u32, width: u32, channels: usize) -> Vec<f32> {
-    let base = ((row * width + column) * (channels as u32) * 2) as usize;
+fn read_texel(
+    image: &Image,
+    column: u32,
+    row: u32,
+    width: u32,
+    height: u32,
+    layer: u32,
+    channels: usize,
+) -> Vec<f32> {
+    let layer_stride = (width * height * channels as u32 * 2) as usize;
+    let base =
+        layer_stride * layer as usize + ((row * width + column) * channels as u32 * 2) as usize;
     let data = image.data.as_ref().unwrap();
     (0..channels)
         .map(|channel| {
@@ -51,7 +61,7 @@ fn bake_claims_only_texels_inside_body_shapes() {
         )
         .unwrap(),
     ];
-    let (params, level_id, flow) = bake(&bodies, false);
+    let (params, maps) = bake(&bodies, false);
     assert_eq!(params.meta.x, 2.0, "two bounded bodies");
     assert_eq!(params.meta.y, 0.0, "no Ocean resource");
 
@@ -65,8 +75,8 @@ fn bake_claims_only_texels_inside_body_shapes() {
         let column = (uv.x * width as f32) as u32;
         let row = (uv.y * height as f32) as u32;
         (
-            read_texel(&level_id, column, row, width, 2),
-            read_texel(&flow, column, row, width, 4),
+            read_texel(&maps, column, row, width, height, 0, 4)[0..2].to_vec(),
+            read_texel(&maps, column, row, width, height, 1, 4),
         )
     };
 

@@ -57,6 +57,8 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: GENERATE,
             shader: pass::ShaderSource::Path(SHADER_PATH),
             entry_points: &["generate"],
+            shader_defs: &[],
+            wgsl_entry: None,
             layout: BindGroupLayoutDescriptor::new(
                 GENERATE,
                 &BindGroupLayoutEntries::sequential(
@@ -73,6 +75,14 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: COMBINE,
             shader: pass::ShaderSource::Path(COMBINE_SHADER_PATH),
             entry_points: COMBINE_ENTRIES,
+            shader_defs: &[
+                &["COMBINE_0"],
+                &["COMBINE_1"],
+                &["COMBINE_2"],
+                &["COMBINE_3"],
+                &["COMBINE_4"],
+            ],
+            wgsl_entry: Some("main"),
             layout: BindGroupLayoutDescriptor::new(
                 COMBINE,
                 &BindGroupLayoutEntries::sequential(
@@ -91,6 +101,8 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: GATHER,
             shader: pass::ShaderSource::Path(GATHER_SHADER_PATH),
             entry_points: &["gather"],
+            shader_defs: &[],
+            wgsl_entry: None,
             layout: BindGroupLayoutDescriptor::new(
                 GATHER,
                 &BindGroupLayoutEntries::sequential(
@@ -103,6 +115,8 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: EVOLVE,
             shader: pass::ShaderSource::Path(FFT_EVOLVE_SHADER_PATH),
             entry_points: &["evolve"],
+            shader_defs: &[],
+            wgsl_entry: None,
             layout: BindGroupLayoutDescriptor::new(
                 EVOLVE,
                 &BindGroupLayoutEntries::sequential(
@@ -120,6 +134,8 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: TRANSFORM,
             shader: pass::ShaderSource::Handle(stockham.0.clone()),
             entry_points: &["horizontal", "vertical"],
+            shader_defs: &[&[], &["FFT_VERTICAL"]],
+            wgsl_entry: Some("main"),
             layout: BindGroupLayoutDescriptor::new(
                 TRANSFORM,
                 &BindGroupLayoutEntries::sequential(compute, (float_array(), storage_rgba32())),
@@ -129,6 +145,8 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: RESOLVE,
             shader: pass::ShaderSource::Path(FFT_RESOLVE_SHADER_PATH),
             entry_points: &["resolve"],
+            shader_defs: &[],
+            wgsl_entry: None,
             layout: BindGroupLayoutDescriptor::new(
                 RESOLVE,
                 &BindGroupLayoutEntries::sequential(
@@ -147,6 +165,8 @@ fn pass_table(stockham: &StockhamShader) -> Vec<pass::PassSpec> {
             key: SURFACE,
             shader: pass::ShaderSource::Path(FFT_SURFACE_SHADER_PATH),
             entry_points: &["resolve_surface"],
+            shader_defs: &[],
+            wgsl_entry: None,
             layout: BindGroupLayoutDescriptor::new(
                 SURFACE,
                 &BindGroupLayoutEntries::sequential(

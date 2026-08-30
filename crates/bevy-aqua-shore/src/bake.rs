@@ -8,10 +8,11 @@ use bevy::{
     asset::RenderAssetUsages,
     image::ImageSampler,
     prelude::*,
-    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+    render::render_resource::{Extent3d, TextureDimension},
 };
 use bevy_aqua_core::{
-    BodyOptics, BodyParams, FieldParams, MAX_BODIES, ResolvedWaterBody, WaterShape,
+    BodyOptics, BodyParams, FIELD_LAYER_COUNT, FIELD_TEXTURE_FORMAT, FieldParams, MAX_BODIES,
+    ResolvedWaterBody, WaterShape,
 };
 
 /// Longest field side in texels; bounds VRAM for kilometre-scale regions.
@@ -22,6 +23,8 @@ const MIN_TEXEL: f32 = 0.25;
 const REGION_PAD: f32 = 8.0;
 /// Inside-marker for non-river bodies: saturates the 8 m bank-fade band.
 const INSIDE_NO_FLOW: f32 = 8.0;
+/// Minimum side that keeps a linear-filtered field map nondegenerate.
+const MIN_FIELD_EXTENT: u32 = 4;
 
 /// Converts an `f32` to its IEEE 754 binary16 bit pattern.
 pub fn f32_to_f16_bits(value: f32) -> u16 {
@@ -66,30 +69,42 @@ fn push_f16(data: &mut Vec<u8>, value: f32) {
     data.extend_from_slice(&f32_to_f16_bits(value).to_le_bytes());
 }
 
-fn field_image(format: TextureFormat, width: u32, height: u32, data: Vec<u8>) -> Image {
+fn field_image(width: u32, height: u32, layers: u32, data: Vec<u8>) -> Image {
     let mut image = Image::new(
         Extent3d {
             width,
             height,
-            depth_or_array_layers: 1,
+            depth_or_array_layers: layers,
         },
         TextureDimension::D2,
         data,
-        format,
+        FIELD_TEXTURE_FORMAT,
         RenderAssetUsages::default(),
     );
     image.sampler = ImageSampler::linear();
     image
 }
 
-/// Bakes both field textures and the uniform for the resolved body set.
-pub fn bake(bodies: &[ResolvedWaterBody], has_ocean: bool) -> (FieldParams, Image, Image) {
+/// Bakes packed field maps and their uniform.
+///
+/// Array layer 0 is level+slot; layer 1 is river flow.
+pub fn bake(bodies: &[ResolvedWaterBody], has_ocean: bool) -> (FieldParams, Image) {
     let mut params = FieldParams::none();
     params.meta.y = f32::from(has_ocean);
     if bodies.is_empty() {
-        let dummy = field_image(TextureFormat::Rg16Float, 4, 4, vec![0; 4 * 4 * 2 * 2]);
-        let flow = field_image(TextureFormat::Rgba16Float, 4, 4, vec![0; 4 * 4 * 4 * 2]);
-        return (params, dummy, flow);
+        let texel_count =
+            MIN_FIELD_EXTENT as usize * MIN_FIELD_EXTENT as usize * FIELD_LAYER_COUNT as usize;
+        let bytes_per_texel = FIELD_TEXTURE_FORMAT
+            .block_copy_size(None)
+            .expect("packed field texture format must have a fixed block size")
+            as usize;
+        let dummy = field_image(
+            MIN_FIELD_EXTENT,
+            MIN_FIELD_EXTENT,
+            FIELD_LAYER_COUNT,
+            vec![0; texel_count * bytes_per_texel],
+        );
+        return (params, dummy);
     }
 
     let extents: Vec<(Vec2, f32)> = bodies.iter().map(ResolvedWaterBody::extent).collect();
@@ -104,8 +119,8 @@ pub fn bake(bodies: &[ResolvedWaterBody], has_ocean: bool) -> (FieldParams, Imag
     maximum += Vec2::splat(REGION_PAD);
     let size = maximum - minimum;
     let texel = (size.max_element() / MAX_FIELD_SIDE as f32).max(MIN_TEXEL);
-    let width = ((size.x / texel).ceil() as u32).clamp(4, MAX_FIELD_SIDE);
-    let height = ((size.y / texel).ceil() as u32).clamp(4, MAX_FIELD_SIDE);
+    let width = ((size.x / texel).ceil() as u32).clamp(MIN_FIELD_EXTENT, MAX_FIELD_SIDE);
+    let height = ((size.y / texel).ceil() as u32).clamp(MIN_FIELD_EXTENT, MAX_FIELD_SIDE);
     params.region = minimum.extend(size.x).extend(size.y);
     params.meta.x = bodies.len() as f32;
     params.meta.z = texel;
@@ -132,7 +147,7 @@ pub fn bake(bodies: &[ResolvedWaterBody], has_ocean: bool) -> (FieldParams, Imag
         );
     }
 
-    let mut level_id = Vec::with_capacity((width * height * 2 * 2) as usize);
+    let mut level_id = Vec::with_capacity((width * height * 4 * 2) as usize);
     let mut flow = Vec::with_capacity((width * height * 4 * 2) as usize);
     for row in 0..height {
         let z = minimum.y + (row as f32 + 0.5) * texel;
@@ -170,15 +185,17 @@ pub fn bake(bodies: &[ResolvedWaterBody], has_ocean: bool) -> (FieldParams, Imag
             );
             push_f16(&mut level_id, level);
             push_f16(&mut level_id, slot as f32);
+            push_f16(&mut level_id, 0.0);
+            push_f16(&mut level_id, 0.0);
             for channel in sample {
                 push_f16(&mut flow, channel);
             }
         }
     }
+    level_id.extend(flow);
     (
         params,
-        field_image(TextureFormat::Rg16Float, width, height, level_id),
-        field_image(TextureFormat::Rgba16Float, width, height, flow),
+        field_image(width, height, FIELD_LAYER_COUNT, level_id),
     )
 }
 

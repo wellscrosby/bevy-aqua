@@ -331,7 +331,7 @@ struct WaterOpticsLabel(String);
 #[derive(Resource, Default)]
 struct GpuProfile {
     warmup_frames: u32,
-    last_measurement: Option<std::time::Instant>,
+    last_measurement: Option<bevy::platform::time::Instant>,
     samples: Vec<[f64; 12]>,
 }
 

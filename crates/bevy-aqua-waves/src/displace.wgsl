@@ -6,7 +6,7 @@
 
 #import bevy_pbr::mesh_view_bindings::globals
 
-#import aqua::cascade::{CREST_SSS_MAXIMUM, CREST_SSS_RANGE, MIN_NORMAL_Y, MIN_SAMPLE_WEIGHT, advected_world, cascade_layout, detail_normal, detail_sampler, fft_surface, flow_frame, lod_alpha, lod_count, lod_data, lod_sampler, surface, world_to_uv}
+#import aqua::cascade::{CREST_SSS_MAXIMUM, CREST_SSS_RANGE, MIN_NORMAL_Y, MIN_SAMPLE_WEIGHT, advected_world, cascade_layout, detail_normal, detail_sampler, fft_surface, flow_frame, lod_alpha, lod_count, lod_data, lod_sampler, screen_texture_lod, surface, world_to_uv}
 
 const NORMAL_DIRECTION_0: vec2<f32> = vec2(0.94, 0.34);
 const NORMAL_DIRECTION_1: vec2<f32> = vec2(-0.85, -0.53);
@@ -155,8 +155,8 @@ fn crest_sss(world_xz: vec2<f32>, lod: u32, alpha: f32) -> f32 {
     return clamp(CREST_SSS_MAXIMUM - CREST_SSS_RANGE * determinant, 0.0, 1.0);
 }
 
-fn sample_detail_normal(uv: vec2<f32>) -> vec3<f32> {
-    let packed = textureSample(detail_normal, detail_sampler, uv);
+fn sample_detail_normal(uv: vec2<f32>, lod: f32) -> vec3<f32> {
+    let packed = textureSampleLevel(detail_normal, detail_sampler, uv, lod);
     let slope = 2.0 * packed.xy - vec2(1.0);
     let second_moment = 2.0 * packed.z;
     return vec3(slope, max(second_moment - dot(slope, slope), 0.0));
@@ -179,18 +179,25 @@ fn detail_normal_sample(world_xz: vec2<f32>, lod: u32, alpha: f32, ripple: f32) 
         log(1.0 + 4.0 * cascade.texel_width) * NORMAL_SCROLL_MULTIPLIER,
         NORMAL_SCROLL_POWER,
     );
+    let texture_width = textureDimensions(detail_normal).x;
+    let near_lod = screen_texture_lod(stretch, texture_width);
     let near_a = sample_detail_normal(
         (scrolled_xz + NORMAL_DIRECTION_0 * globals.time * speed_near) / stretch,
+        near_lod,
     );
     let near_b = sample_detail_normal(
         (scrolled_xz + NORMAL_DIRECTION_1 * globals.time * speed_near) / stretch,
+        near_lod,
     );
     let far_stretch = 2.0 * stretch;
+    let far_lod = screen_texture_lod(far_stretch, texture_width);
     let far_a = sample_detail_normal(
         (scrolled_xz + NORMAL_DIRECTION_0 * globals.time * speed_far) / far_stretch,
+        far_lod,
     );
     let far_b = sample_detail_normal(
         (scrolled_xz + NORMAL_DIRECTION_1 * globals.time * speed_far) / far_stretch,
+        far_lod,
     );
     let near = near_a.xy + near_b.xy;
     let far = far_a.xy + far_b.xy;
@@ -216,5 +223,6 @@ fn capillary_normal_slope(world_xz: vec2<f32>, ripple: f32) -> vec2<f32> {
     let scrolled = advected_world(world_xz)
         + CAPILLARY_DIRECTION * globals.time * speed;
     let uv = CAPILLARY_ROTATION * scrolled / stretch;
-    return ripple * surface.capillary.y * sample_detail_normal(uv).xy;
+    let lod = screen_texture_lod(stretch, textureDimensions(detail_normal).x);
+    return ripple * surface.capillary.y * sample_detail_normal(uv, lod).xy;
 }

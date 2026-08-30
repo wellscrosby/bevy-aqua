@@ -18,7 +18,7 @@ fn state_texture_matches_the_generated_shader_contract() {
     assert_eq!(size.height, RESOLUTION);
     assert_eq!(size.depth_or_array_layers, FOAM_LOD_COUNT);
     assert_eq!(image.texture_descriptor.dimension, TextureDimension::D2);
-    assert_eq!(image.texture_descriptor.format, TextureFormat::R16Float);
+    assert_eq!(image.texture_descriptor.format, TextureFormat::Rgba16Float);
     assert!(
         image
             .texture_descriptor

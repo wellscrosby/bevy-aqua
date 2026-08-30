@@ -45,7 +45,7 @@ struct AnimWavesUniform {
 @group(0) @binding(3) var output: texture_storage_2d_array<rgba16float, write>;
 @group(0) @binding(4) var<uniform> params: AnimWavesUniform;
 
-fn combine(id: vec3<u32>, slice: u32) {
+fn combine_lod(id: vec3<u32>, slice: u32) {
     let cascade = params.cascade_layout.cascades[slice];
     if id.x >= u32(cascade.texture_res) || id.y >= u32(cascade.texture_res) {
         return;
@@ -69,13 +69,23 @@ fn combine(id: vec3<u32>, slice: u32) {
     textureStore(output, vec2<i32>(id.xy), i32(slice), vec4(displacement, 0.0));
 }
 
+#ifdef COMBINE_1
 @compute @workgroup_size(8, 8, 1)
-fn combine_0(@builtin(global_invocation_id) id: vec3<u32>) { combine(id, 0u); }
+fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 1u); }
+#endif
+#ifdef COMBINE_2
 @compute @workgroup_size(8, 8, 1)
-fn combine_1(@builtin(global_invocation_id) id: vec3<u32>) { combine(id, 1u); }
+fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 2u); }
+#endif
+#ifdef COMBINE_3
 @compute @workgroup_size(8, 8, 1)
-fn combine_2(@builtin(global_invocation_id) id: vec3<u32>) { combine(id, 2u); }
+fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 3u); }
+#endif
+#ifdef COMBINE_4
 @compute @workgroup_size(8, 8, 1)
-fn combine_3(@builtin(global_invocation_id) id: vec3<u32>) { combine(id, 3u); }
+fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 4u); }
+#endif
+#ifdef COMBINE_0
 @compute @workgroup_size(8, 8, 1)
-fn combine_4(@builtin(global_invocation_id) id: vec3<u32>) { combine(id, 4u); }
+fn main(@builtin(global_invocation_id) id: vec3<u32>) { combine_lod(id, 0u); }
+#endif

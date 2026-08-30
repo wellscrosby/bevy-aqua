@@ -157,9 +157,8 @@ struct FieldParams {
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(15) var<uniform> field_params: FieldParams;
-@group(#{MATERIAL_BIND_GROUP}) @binding(16) var field_level_id: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(16) var field_maps: texture_2d_array<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(17) var field_sampler: sampler;
-@group(#{MATERIAL_BIND_GROUP}) @binding(18) var field_flow: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(19) var reflection_a: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(20) var reflection_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(21) var reflection_b: texture_2d<f32>;
@@ -238,6 +237,24 @@ fn sample_planar_reflection(
 // that bake one. Vertex and fragment stages set it before sampling.
 var<private> effective_flow: vec2<f32> = vec2(0.0, 0.0);
 var<private> effective_time: f32 = 0.0;
+// Conservative world-XZ metres covered by one screen pixel; nonnegative.
+var<private> xz_footprint: f32 = 0.0;
+
+fn set_xz_footprint(value: f32) {
+    xz_footprint = value;
+}
+
+fn screen_xz_footprint() -> f32 {
+    return xz_footprint;
+}
+
+// Analytic texture LOD: dUV/dpixel is the world-XZ footprint divided by
+// metres per UV repeat, and mip LOD is log2(texels covered per pixel).
+fn screen_texture_lod(metres_per_repeat: f32, texture_width: u32) -> f32 {
+    let texels_per_pixel =
+        screen_xz_footprint() * f32(texture_width) / max(metres_per_repeat, 1e-6);
+    return max(log2(max(texels_per_pixel, 1.0)), 0.0);
+}
 
 /// Ripple-strength multiplier at the current fragment: 1.0 everywhere except
 /// inside river bodies, where faster narrows read rougher and banks calm.
@@ -346,12 +363,12 @@ fn field_uv(world_xz: vec2<f32>) -> vec2<f32> {
 
 /// rg: surface level, one-based body slot (0 = unclaimed).
 fn sample_field_level(world_xz: vec2<f32>) -> vec2<f32> {
-    return textureSampleLevel(field_level_id, field_sampler, field_uv(world_xz), 0.0).xy;
+    return textureSampleLevel(field_maps, field_sampler, field_uv(world_xz), 0, 0.0).xy;
 }
 
 /// rgb: flow m/s; z: signed bank margin in metres; w: speed m/s.
 fn sample_field_flow(world_xz: vec2<f32>) -> vec4<f32> {
-    return textureSampleLevel(field_flow, field_sampler, field_uv(world_xz), 0.0);
+    return textureSampleLevel(field_maps, field_sampler, field_uv(world_xz), 1, 0.0);
 }
 
 /// Parameters of the body owning a point; slot 0 falls back to the

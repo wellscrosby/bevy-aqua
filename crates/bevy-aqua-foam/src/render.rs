@@ -51,6 +51,8 @@ fn pass_table() -> Vec<pass::PassSpec> {
         key: UPDATE,
         shader: pass::ShaderSource::Path(SHADER_PATH),
         entry_points: &[PREVIOUS, PREVIOUS_ZERO, CURRENT],
+        shader_defs: &[&[], &["FOAM_REPROJECT_PREVIOUS"], &["FOAM_UPDATE_CURRENT"]],
+        wgsl_entry: Some("main"),
         layout: BindGroupLayoutDescriptor::new(
             UPDATE,
             &BindGroupLayoutEntries::sequential(
@@ -62,7 +64,7 @@ fn pass_table() -> Vec<pass::PassSpec> {
                     sampler(SamplerBindingType::Filtering),
                     texture_2d(TextureSampleType::Float { filterable: false }),
                     texture_storage_2d_array(
-                        TextureFormat::R16Float,
+                        TextureFormat::Rgba16Float,
                         StorageTextureAccess::WriteOnly,
                     ),
                     uniform_buffer::<Uniform>(false),

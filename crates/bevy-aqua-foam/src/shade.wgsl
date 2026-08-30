@@ -5,7 +5,7 @@
 
 #import bevy_pbr::mesh_view_bindings::globals
 
-#import aqua::cascade::{CascadeParams, LUMINANCE_EPSILON, LocalLightSample, MIN_SAMPLE_WEIGHT, RiverState, advected_world, capillary_resolved_weight, cascade_layout, foam_data, foam_pattern, foam_pattern_sampler, foam_sampler, lod_count, surface, world_to_uv}
+#import aqua::cascade::{CascadeParams, LUMINANCE_EPSILON, LocalLightSample, MIN_SAMPLE_WEIGHT, RiverState, advected_world, capillary_resolved_weight, cascade_layout, foam_data, foam_pattern, foam_pattern_sampler, foam_sampler, lod_count, screen_texture_lod, surface, world_to_uv}
 #import aqua::foam::contract::{FOAM_PATTERN_RESOLUTION, FOAM_TEXTURE_RESOLUTION}
 const INV_PI: f32 = 0.31830988618;
 const CREST_FOAM_WHITE_COLOR: vec4<f32> = vec4(
@@ -149,24 +149,33 @@ fn surface_foam_mask(
     // position so this module never touches per-invocation state.
     let offset = vec2(globals.time / 10.0) + sample_offset;
     let pattern_xz = advected_xz;
-    let near = textureSample(
+    let texture_width = textureDimensions(foam_pattern).x;
+    let near_lod = screen_texture_lod(texture_scale / 1.25, texture_width);
+    let near = textureSampleLevel(
         foam_pattern,
         foam_pattern_sampler,
         (1.25 * pattern_xz + offset) / texture_scale,
+        near_lod,
     ).r;
-    let far = textureSample(
+    let far_scale = 2.0 * texture_scale;
+    let far_lod = screen_texture_lod(far_scale / 1.25, texture_width);
+    let far = textureSampleLevel(
         foam_pattern,
         foam_pattern_sampler,
-        (1.25 * pattern_xz + offset) / (2.0 * texture_scale),
+        (1.25 * pattern_xz + offset) / far_scale,
+        far_lod,
     ).r;
     var pattern = mix(near, far, alpha);
     let fine_scroll = FINE_FOAM_SCROLL_DIRECTION * globals.time / 17.0;
     let fine_coordinates =
         FINE_FOAM_ROTATION * (1.25 * pattern_xz + sample_offset) + fine_scroll;
-    let fine = textureSample(
+    let fine_scale = FINE_FOAM_SCALE * texture_scale;
+    let fine_lod = screen_texture_lod(fine_scale / 1.25, texture_width);
+    let fine = textureSampleLevel(
         foam_pattern,
         foam_pattern_sampler,
-        fine_coordinates / (FINE_FOAM_SCALE * texture_scale),
+        fine_coordinates / fine_scale,
+        fine_lod,
     ).r;
     // Mean-one near-field modulation hides the 512-grid footprint without
     // changing the far-field pattern.
