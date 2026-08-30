@@ -165,19 +165,20 @@ The examples are small, fixed scenes. Each one demonstrates one public feature
 without command-line configuration, external assets, or platform-specific
 source code.
 
-| Example | Demonstrates |
-|---|---|
-| `ocean` | Minimal analytic ocean |
-| `spectral_waves` | FFT spectral wave producer |
-| `foam` | Persistent whitecaps on rough water |
-| `bounded_water` | Local circular and polygonal water bodies |
-| `river` | Curved river flow with changing width and speed |
-| `terrain_bed` | Terrain height input, shoaling, and shallow-water optics |
-| `water_optics` | Water appearance presets shown side by side |
-| `planar_reflection` | Planar reflection of marked scene geometry |
-| `wave_query` | GPU surface queries driving a procedural buoy |
+| Example | Demonstrates | Screenshot |
+|---|---|---|
+| `ocean` | Minimal analytic ocean | <img src="docs/images/examples/ocean.jpg" alt="ocean example" width="220"> |
+| `spectral_waves` | FFT spectral wave producer | <img src="docs/images/examples/spectral_waves.jpg" alt="spectral_waves example" width="220"> |
+| `foam` | Persistent whitecaps on rough water | <img src="docs/images/examples/foam.jpg" alt="foam example" width="220"> |
+| `bounded_water` | Local circular and polygonal water bodies | <img src="docs/images/examples/bounded_water.jpg" alt="bounded_water example" width="220"> |
+| `river` | Curved river flow with changing width and speed | <img src="docs/images/examples/river.jpg" alt="river example" width="220"> |
+| `terrain_bed` | Terrain height input, shoaling, and shallow-water optics | <img src="docs/images/examples/terrain_bed.jpg" alt="terrain_bed example" width="220"> |
+| `water_optics` | Water appearance presets shown side by side | <img src="docs/images/examples/water_optics.jpg" alt="water_optics example" width="220"> |
+| `planar_reflection` | Planar reflection of marked scene geometry | <img src="docs/images/examples/planar_reflection.jpg" alt="planar_reflection example" width="220"> |
+| `wave_query` | GPU surface queries driving a procedural buoy | <img src="docs/images/examples/wave_query.jpg" alt="wave_query example" width="220"> |
 
-Run any scene natively:
+[Try the examples online with WebGPU](https://sayhisam1.github.io/bevy-aqua/),
+or run any scene natively:
 
 ```sh
 cargo run --example ocean
