@@ -51,7 +51,7 @@ readme = "README.md"
 documentation = "https://docs.rs/bevy-aqua"
 keywords = ["bevy", "water", "ocean", "shader"]
 categories = ["game-development", "rendering"]
-exclude = ["assets/test/**"]
+exclude = ["assets/examples/**", "assets/test/**"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -106,6 +106,9 @@ bevy = { workspace = true, features = [
     "x11",
     "zstd_rust",
 ] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+bevy = { workspace = true, features = ["webgpu"] }
 
 [lints]
 workspace = true
