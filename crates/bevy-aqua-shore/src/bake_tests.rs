@@ -23,8 +23,8 @@ fn read_texel(
     channels: usize,
 ) -> Vec<f32> {
     let layer_stride = (width * height * channels as u32 * 2) as usize;
-    let base = layer_stride * layer as usize
-        + ((row * width + column) * channels as u32 * 2) as usize;
+    let base =
+        layer_stride * layer as usize + ((row * width + column) * channels as u32 * 2) as usize;
     let data = image.data.as_ref().unwrap();
     (0..channels)
         .map(|channel| {

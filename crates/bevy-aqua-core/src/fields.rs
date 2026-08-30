@@ -20,6 +20,10 @@ use crate::{AmortizedBake, ResolvedWaterBody};
 
 /// Hard cap on registered bounded bodies (uniform array size).
 pub const MAX_BODIES: usize = 16;
+/// Array layers in the packed field texture: level/slot, then river flow.
+pub const FIELD_LAYER_COUNT: u32 = 2;
+/// Shared format of every packed field texture.
+pub const FIELD_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
 
 /// Uniform mirror of the baked fields, matching `FieldParams` in
 /// `cascade/common.wgsl`.
@@ -57,14 +61,19 @@ pub struct WaterFields {
 impl FromWorld for WaterFields {
     fn from_world(world: &mut World) -> Self {
         let mut images = world.resource_mut::<Assets<Image>>();
+        let bytes_per_texel = FIELD_TEXTURE_FORMAT
+            .block_copy_size(None)
+            .expect("packed field texture format must have a fixed block size")
+            as usize;
+        let zero_texel = vec![0; bytes_per_texel];
         let mut maps = Image::new_fill(
             Extent3d {
-                depth_or_array_layers: 2,
+                depth_or_array_layers: FIELD_LAYER_COUNT,
                 ..default()
             },
             TextureDimension::D2,
-            &[0; 8],
-            TextureFormat::Rgba16Float,
+            &zero_texel,
+            FIELD_TEXTURE_FORMAT,
             RenderAssetUsages::default(),
         );
         maps.sampler = ImageSampler::linear();

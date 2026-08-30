@@ -51,7 +51,7 @@ pub use cascade::BASE_SCALE;
 #[doc(hidden)]
 pub use cascade::add_shader;
 #[doc(hidden)]
-pub use fields::{FieldParams, MAX_BODIES, WaterFields};
+pub use fields::{FIELD_LAYER_COUNT, FIELD_TEXTURE_FORMAT, FieldParams, MAX_BODIES, WaterFields};
 #[doc(hidden)]
 pub use rings::{Patch, Tile, build_patch, tile_layout};
 #[doc(hidden)]
