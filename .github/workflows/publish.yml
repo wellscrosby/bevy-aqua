@@ -84,9 +84,10 @@ jobs:
             bevy-aqua
           )
 
+          user_agent="bevy-aqua-release-workflow/0.1 (+https://github.com/sayhisam1/bevy-aqua)"
           for crate in "${crates[@]}"; do
             endpoint="https://crates.io/api/v1/crates/$crate/$VERSION"
-            if curl --fail --silent --show-error "$endpoint" >/dev/null; then
+            if curl --user-agent "$user_agent" --fail --silent --show-error "$endpoint" >/dev/null; then
               echo "$crate $VERSION is already published; skipping"
               continue
             fi
@@ -97,7 +98,7 @@ jobs:
             # version through its API and sparse index.
             available=false
             for _ in {1..30}; do
-              if curl --fail --silent "$endpoint" >/dev/null; then
+              if curl --user-agent "$user_agent" --fail --silent "$endpoint" >/dev/null; then
                 available=true
                 break
               fi
