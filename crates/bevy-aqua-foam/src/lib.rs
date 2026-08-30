@@ -220,9 +220,9 @@ impl Uniform {
 }
 
 pub(crate) fn make_state_texture() -> Image {
-    let bytes_per_pixel = TextureFormat::R32Float
+    let bytes_per_pixel = TextureFormat::Rgba16Float
         .block_copy_size(None)
-        .expect("R32Float must have a fixed block size") as usize;
+        .expect("Rgba16Float must have a fixed block size") as usize;
     let pixel_count = RESOLUTION as usize * RESOLUTION as usize * LOD_COUNT;
     let mut image = Image::new(
         Extent3d {
@@ -232,7 +232,7 @@ pub(crate) fn make_state_texture() -> Image {
         },
         TextureDimension::D2,
         vec![0; pixel_count * bytes_per_pixel],
-        TextureFormat::R32Float,
+        TextureFormat::Rgba16Float,
         RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
     );
     image.texture_descriptor.usage = TextureUsages::COPY_DST

@@ -37,7 +37,7 @@ struct FoamUniform {
 @group(0) @binding(2) var anim_waves: texture_2d_array<f32>;
 @group(0) @binding(3) var waves_sampler: sampler;
 @group(0) @binding(4) var bed_height: texture_2d<f32>;
-@group(0) @binding(5) var target_foam: texture_storage_2d_array<r32float, write>;
+@group(0) @binding(5) var target_foam: texture_storage_2d_array<rgba16float, write>;
 @group(0) @binding(6) var<uniform> foam: FoamUniform;
 @group(0) @binding(7) var fft_surface: texture_2d_array<f32>;
 

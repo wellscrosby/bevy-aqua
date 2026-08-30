@@ -64,7 +64,7 @@ fn pass_table() -> Vec<pass::PassSpec> {
                     sampler(SamplerBindingType::Filtering),
                     texture_2d(TextureSampleType::Float { filterable: false }),
                     texture_storage_2d_array(
-                        TextureFormat::R32Float,
+                        TextureFormat::Rgba16Float,
                         StorageTextureAccess::WriteOnly,
                     ),
                     uniform_buffer::<Uniform>(false),
