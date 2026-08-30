@@ -23,10 +23,8 @@ bevy-aqua-sdf = { path = "crates/bevy-aqua-sdf", version = "0.1.2" }
 bevy-aqua-spray = { path = "crates/bevy-aqua-spray", version = "0.1.2" }
 bevy-aqua-shore = { path = "crates/bevy-aqua-shore", version = "0.1.2" }
 bevy-aqua-waves = { path = "crates/bevy-aqua-waves", version = "0.1.2" }
-anyhow = "1"
 bevy = { version = "0.19", default-features = false }
 bevy_ecs = "0.19"
-clap = { version = "4", features = ["derive"] }
 bevy_hanabi = { version = "0.19.0", default-features = false, features = ["3d"] }
 glam = "0.32"
 
@@ -51,7 +49,7 @@ readme = "README.md"
 documentation = "https://docs.rs/bevy-aqua"
 keywords = ["bevy", "water", "ocean", "shader"]
 categories = ["game-development", "rendering"]
-exclude = ["assets/examples/**", "assets/test/**"]
+exclude = ["assets/test/**"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -77,30 +75,22 @@ bevy = { workspace = true, features = [
     "bevy_pbr",
     "bevy_render",
     "bevy_core_pipeline",
-    "png",
 ] }
 
 [dev-dependencies]
-anyhow.workspace = true
-clap.workspace = true
 bevy = { workspace = true, features = [
     "bevy_asset",
     "bevy_core_pipeline",
-    "bevy_gltf",
     "bevy_log",
     "bevy_pbr",
-    "bevy_post_process",
     "bevy_render",
-    "bevy_scene",
     "bevy_text",
     "bevy_ui",
     "bevy_ui_render",
     "bevy_window",
     "bevy_winit",
     "default_font",
-    "jpeg",
     "multi_threaded",
-    "png",
     "reflect_auto_register",
     "tonemapping_luts",
     "x11",
@@ -109,6 +99,14 @@ bevy = { workspace = true, features = [
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 bevy = { workspace = true, features = ["webgpu"] }
+
+[[example]]
+name = "planar_reflection"
+required-features = ["reflect"]
+
+[[example]]
+name = "wave_query"
+required-features = ["query"]
 
 [lints]
 workspace = true
