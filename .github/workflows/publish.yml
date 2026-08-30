@@ -1,0 +1,110 @@
+name: Publish crates.io release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact workspace version to publish, without a v prefix
+        required: true
+        type: string
+
+concurrency:
+  group: crates-io-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish workspace
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          mapfile -t versions < <(
+            cargo metadata --no-deps --format-version 1 |
+              jq -r '.packages[].version' | sort -u
+          )
+          if (( ${#versions[@]} != 1 )); then
+            printf 'Workspace packages do not share one version: %s\n' "${versions[*]}" >&2
+            exit 1
+          fi
+
+          version="${versions[0]}"
+          if [[ "${{ github.event_name }}" == release ]]; then
+            requested="${RELEASE_TAG#v}"
+          else
+            requested="$REQUESTED_VERSION"
+          fi
+          if [[ "$requested" != "$version" ]]; then
+            echo "Requested version $requested does not match workspace version $version" >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Test publishable workspace
+        run: |
+          cargo fmt --all -- --check
+          cargo test --workspace --lib
+
+      - name: Publish crates in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [[ -z "$CARGO_REGISTRY_TOKEN" ]]; then
+            echo 'The crates-io environment needs a CARGO_REGISTRY_TOKEN secret.' >&2
+            exit 1
+          fi
+
+          crates=(
+            bevy-aqua-fft
+            bevy-aqua-sdf
+            bevy-aqua-geom
+            bevy-aqua-light
+            bevy-aqua-optics
+            bevy-aqua-core
+            bevy-aqua-waves
+            bevy-aqua-foam
+            bevy-aqua-shore
+            bevy-aqua-query
+            bevy-aqua-reflect
+            bevy-aqua-spray
+            bevy-aqua-motion
+            bevy-aqua
+          )
+
+          for crate in "${crates[@]}"; do
+            endpoint="https://crates.io/api/v1/crates/$crate/$VERSION"
+            if curl --fail --silent --show-error "$endpoint" >/dev/null; then
+              echo "$crate $VERSION is already published; skipping"
+              continue
+            fi
+
+            cargo publish --package "$crate"
+
+            # A dependent package cannot publish until crates.io exposes this
+            # version through its API and sparse index.
+            available=false
+            for _ in {1..30}; do
+              if curl --fail --silent "$endpoint" >/dev/null; then
+                available=true
+                break
+              fi
+              sleep 10
+            done
+            if [[ "$available" != true ]]; then
+              echo "$crate $VERSION did not become available within five minutes" >&2
+              exit 1
+            fi
+          done
