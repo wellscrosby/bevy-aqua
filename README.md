@@ -2,6 +2,8 @@
 
 [![crates.io](https://img.shields.io/crates/v/bevy-aqua.svg)](https://crates.io/crates/bevy-aqua)
 
+## [Try the live WebGPU demos →](https://sayhisam1.github.io/bevy-aqua/)
+
 Camera-centred ocean rendering for Bevy 0.19 with analytic and FFT waves,
 depth-aware transmission, reflections, persistent foam, localized water
 bodies, and GPU surface queries.
@@ -177,8 +179,7 @@ source code.
 | `planar_reflection` | Planar reflection of marked scene geometry | <img src="docs/images/examples/planar_reflection.jpg" alt="planar_reflection example" width="220"> |
 | `wave_query` | GPU surface queries driving a procedural buoy | <img src="docs/images/examples/wave_query.jpg" alt="wave_query example" width="220"> |
 
-[Try the examples online with WebGPU](https://sayhisam1.github.io/bevy-aqua/),
-or run any scene natively:
+Run any scene natively:
 
 ```sh
 cargo run --example ocean
