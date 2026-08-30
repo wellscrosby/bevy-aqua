@@ -175,6 +175,7 @@ source code.
 | `bounded_water` | Local circular and polygonal water bodies | <img src="docs/images/examples/bounded_water.jpg" alt="bounded_water example" width="220"> |
 | `river` | Curved river flow with changing width and speed | <img src="docs/images/examples/river.jpg" alt="river example" width="220"> |
 | `terrain_bed` | Terrain height input, shoaling, and shallow-water optics | <img src="docs/images/examples/terrain_bed.jpg" alt="terrain_bed example" width="220"> |
+| `debug_views` | Automatic cycle through all Aqua diagnostics | <img src="docs/images/examples/debug_views.jpg" alt="debug_views example" width="220"> |
 | `water_optics` | Water appearance presets shown side by side | <img src="docs/images/examples/water_optics.jpg" alt="water_optics example" width="220"> |
 | `planar_reflection` | Planar reflection of marked scene geometry | <img src="docs/images/examples/planar_reflection.jpg" alt="planar_reflection example" width="220"> |
 | `wave_query` | GPU surface queries driving a procedural buoy | <img src="docs/images/examples/wave_query.jpg" alt="wave_query example" width="220"> |

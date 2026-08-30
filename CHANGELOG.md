@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- A focused native/WebGPU `debug_views` example that automatically cycles
+  through every `AquaDebug` diagnostic mode.
+
 ## [0.1.3] - 2026-08-30
 
 ### Added
