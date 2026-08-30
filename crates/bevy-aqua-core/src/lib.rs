@@ -381,6 +381,30 @@ pub struct AquaSettings {
     pub reflections: ReflectionMode,
     /// Procedural bed caustics; `None` disables both texture samples.
     pub caustics: Option<Caustics>,
+    /// Underwater volumetric lighting. `None` skips the pass.
+    pub volume: Option<WaterVolume>,
+}
+
+/// Raymarched underwater in-scatter, volumetric shadows, and Beer-Lambert
+/// transmittance along the view ray. Far-plane pixels march through the water
+/// instead of ending at the reconstructed clip point. Lights need Bevy's
+/// `VolumetricLight` to cast shafts.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WaterVolume {
+    /// Raymarch samples along the underwater segment.
+    pub step_count: u32,
+    /// Henyey-Greenstein `g`. Higher values brighten shafts when looking
+    /// toward the light and darken them when looking away.
+    pub scattering_asymmetry: f32,
+}
+
+impl Default for WaterVolume {
+    fn default() -> Self {
+        Self {
+            step_count: 48,
+            scattering_asymmetry: 0.8,
+        }
+    }
 }
 
 impl Default for AquaSettings {
@@ -393,6 +417,7 @@ impl Default for AquaSettings {
             far_tier_end: 512.0,
             reflections: ReflectionMode::default(),
             caustics: Some(Caustics::default()),
+            volume: None,
         }
     }
 }

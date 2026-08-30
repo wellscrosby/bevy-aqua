@@ -1,7 +1,8 @@
 //! Camera-centred ocean rendering for Bevy.
 //!
 //! Aqua provides concentric ocean geometry, analytic and FFT displacement,
-//! depth-aware transmission, reflections, foam, and shallow-water attenuation.
+//! depth-aware transmission, reflections, foam, shallow-water attenuation,
+//! and an optional underwater volume pass.
 //! One world unit is one metre.
 //!
 //! # Setup
@@ -29,7 +30,7 @@
 //! - bounded-water authoring: [`WaterBody`], [`WaterShape`], [`WaterOptics`],
 //!   [`RiverPath`], [`RiverPoint`], and Bevy [`Transform`];
 //! - water and rendering choices: [`SeaState`], [`WaveModel`],
-//!   [`ReflectionMode`], and [`Caustics`];
+//!   [`ReflectionMode`], [`Caustics`], and [`WaterVolume`];
 //! - optional feature APIs documented at the root, including `WaveQuery`,
 //!   `WaveSurface`, `ReflectedInWater`, `SprayQuality`, and `SpraySettings`.
 //!
@@ -47,7 +48,7 @@ use bevy::{camera::visibility::VisibilitySystems, prelude::*};
 pub use bevy_aqua_core::{
     AquaDebug, AquaSettings, BedHeightMap, Caustics, CausticsSunVisibility, FlowSample, Ocean,
     OceanWaves, ReflectionMode, RiverPath, RiverPoint, RiverSample, SeaState, WaterBody,
-    WaterOptics, WaterShape, WaveModel,
+    WaterOptics, WaterShape, WaterVolume, WaveModel,
 };
 use bevy_aqua_core::{
     CascadeDataReady, CascadeMaterial, CascadeMaterialsUpdated, Data, OceanView, ViewDetail,
@@ -75,6 +76,7 @@ impl Plugin for AquaPlugin {
         app.add_plugins(bevy_aqua_waves::AquaWavesPlugin);
         app.add_plugins(bevy_aqua_foam::AquaFoamPlugin);
         app.add_plugins(bevy_aqua_shore::AquaShorePlugin);
+        app.add_plugins(bevy_aqua_volume::AquaVolumePlugin);
         #[cfg(feature = "motion")]
         app.add_plugins(bevy_aqua_motion::AquaMotionPlugin);
         #[cfg(feature = "reflect")]

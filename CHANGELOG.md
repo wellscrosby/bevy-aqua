@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - A focused native/WebGPU `debug_views` example that automatically cycles
   through every `AquaDebug` diagnostic mode.
+- Optional underwater volume pass (`AquaSettings::volume`): raymarched RGB Beer-Lambert transmittance, in-scatter from `VolumetricLight` sources, and shadow-mapped shafts, gated off by default.
 
 ## [0.1.3] - 2026-08-30
 

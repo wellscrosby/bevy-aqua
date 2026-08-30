@@ -472,6 +472,7 @@ struct ShaderLibraries {
 pub fn add_shader(app: &mut App) {
     embedded_asset!(app, "cascade/common.wgsl");
     embedded_asset!(app, "cascade/river.wgsl");
+    embedded_asset!(app, "cascade/waves_sample.wgsl");
     embedded_asset!(app, "cascade/deform.wgsl");
     embedded_asset!(app, "cascade/types.wgsl");
     embedded_asset!(app, "cascade/material.wgsl");
@@ -479,6 +480,7 @@ pub fn add_shader(app: &mut App) {
     let handles = vec![
         server.load("embedded://bevy_aqua_core/cascade/common.wgsl"),
         server.load("embedded://bevy_aqua_core/cascade/river.wgsl"),
+        server.load("embedded://bevy_aqua_core/cascade/waves_sample.wgsl"),
         server.load("embedded://bevy_aqua_core/cascade/deform.wgsl"),
         server.load("embedded://bevy_aqua_core/cascade/types.wgsl"),
     ];
