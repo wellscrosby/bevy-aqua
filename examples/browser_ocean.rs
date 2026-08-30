@@ -19,8 +19,10 @@ use bevy_aqua::{
     WaveQuery, WaveSurface,
 };
 
-// Places the asset's -0.81 m keel just below the mean water plane.
-const BUOY_MEAN_HEIGHT: f32 = 0.65;
+// Places the asset's -0.81 m keel about 0.6 m below the mean water plane.
+const BUOY_MEAN_HEIGHT: f32 = 0.2;
+// A 4 s^-1 exponential response damps one-frame GPU readback changes.
+const BUOY_FOLLOW_RATE: f32 = 4.0;
 
 #[derive(Component)]
 struct Buoy {
@@ -98,12 +100,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         )));
 }
 
-fn follow_surface(mut buoy: Query<(&Buoy, &WaveSurface, &mut Transform)>) {
+fn follow_surface(time: Res<Time>, mut buoy: Query<(&Buoy, &WaveSurface, &mut Transform)>) {
+    let response = 1.0 - (-BUOY_FOLLOW_RATE * time.delta_secs()).exp();
     for (buoy, surface, mut transform) in &mut buoy {
         if !surface.valid {
             continue;
         }
-        transform.translation.y = buoy.mean_height + surface.displacement.y;
-        transform.rotation = Quat::from_rotation_arc(Vec3::Y, surface.normal);
+        let target_height = buoy.mean_height + surface.displacement.y;
+        transform.translation.y = transform.translation.y.lerp(target_height, response);
+        let target_rotation = Quat::from_rotation_arc(Vec3::Y, surface.normal);
+        transform.rotation = transform.rotation.slerp(target_rotation, response);
     }
 }
