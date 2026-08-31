@@ -41,18 +41,24 @@ fn mixed_phase(cos_theta: f32, sigma_p: vec3<f32>, g: f32) -> vec3<f32> {
         / denom;
 }
 
-fn fresnel_air_to_water(cos_air: f32) -> f32 {
-    let n1 = 1.0;
-    let n2 = N_WATER;
+fn fresnel_dielectric(n1: f32, n2: f32, cos_i: f32) -> f32 {
     let eta = n1 / n2;
-    let sin2_t = eta * eta * (1.0 - cos_air * cos_air);
+    let sin2_t = eta * eta * (1.0 - cos_i * cos_i);
     if sin2_t >= 1.0 {
         return 1.0;
     }
     let cos_t = sqrt(1.0 - sin2_t);
-    let rs = (n1 * cos_air - n2 * cos_t) / (n1 * cos_air + n2 * cos_t);
-    let rp = (n2 * cos_air - n1 * cos_t) / (n2 * cos_air + n1 * cos_t);
+    let rs = (n1 * cos_i - n2 * cos_t) / (n1 * cos_i + n2 * cos_t);
+    let rp = (n2 * cos_i - n1 * cos_t) / (n2 * cos_i + n1 * cos_t);
     return 0.5 * (rs * rs + rp * rp);
+}
+
+fn fresnel_air_to_water(cos_air: f32) -> f32 {
+    return fresnel_dielectric(1.0, N_WATER, cos_air);
+}
+
+fn fresnel_water_to_air(cos_water: f32) -> f32 {
+    return fresnel_dielectric(N_WATER, 1.0, cos_water);
 }
 
 fn refract_air_to_water(l_air: vec3<f32>) -> vec3<f32> {

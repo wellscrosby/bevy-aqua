@@ -20,7 +20,8 @@ fast the water goes dark. Looking toward the sun is brighter via
 Henyey-Greenstein using `WaterOptics::scattering_asymmetry`.
 `VolumetricLight` is not used.
 
-The cascade mesh is not changed. The medium is the mean water plane. One
+The cascade mesh writes the water-to-air interface on back faces. This pass
+integrates camera-to-hit, or to the mean plane on empty upward pixels. One
 cascade sample at the camera keeps a crest underwater and rejects air.
 
 Above water the pass is skipped. Crossing the surface is a hard cut.

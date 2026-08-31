@@ -30,8 +30,6 @@ struct VolumeUniform {
 @group(1) @binding(5) var lod_sampler: sampler;
 @group(1) @binding(6) var<uniform> waves: AnimWavesUniform;
 
-const SURFACE_HIT_SLACK: f32 = 1.0;
-
 fn displacement_y(world_xz: vec2<f32>) -> f32 {
     if volume.environment.w < 0.5 {
         return 0.0;
@@ -96,11 +94,12 @@ fn fragment(
     }
     let t_surface = intersect_surface_metres(camera, rd_world, PATH_LENGTH_MAX, surface);
     var t_end = min(t_scene, PATH_LENGTH_MAX);
-    if rd_world.y > 0.0 {
+    if rd_world.y > 0.0 && raw_depth <= 0.0 {
+        // No mesh hit looking up: integrate to the mean plane and do not
+        // treat the sky as in-water radiance. A surface hit keeps its
+        // underside colour and path length.
         t_end = min(t_end, t_surface);
-        if raw_depth > 0.0 && abs(t_scene - t_surface) < SURFACE_HIT_SLACK {
-            scene = vec3(0.0);
-        }
+        scene = vec3(0.0);
     }
     let d0 = max(surface - camera.y, 0.0);
     return vec4(

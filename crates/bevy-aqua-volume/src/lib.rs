@@ -18,9 +18,10 @@
 //! via Henyey-Greenstein using [`WaterOptics::scattering_asymmetry`].
 //! `VolumetricLight` is not used.
 //!
-//! The cascade mesh is unchanged. The medium is the mean water plane. A
-//! single cascade sample at the camera keeps a crest underwater and rejects
-//! air. Above water the pass is skipped.
+//! The cascade mesh writes the water-to-air interface on back faces. This
+//! pass integrates camera-to-hit, or to the mean plane on empty upward
+//! pixels. A single cascade sample at the camera keeps a crest underwater
+//! and rejects air. Above water the pass is skipped.
 
 #![warn(unreachable_pub)]
 

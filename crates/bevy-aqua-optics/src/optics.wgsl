@@ -9,7 +9,7 @@
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
 #import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, invocation_scattering_asymmetry, sample_planar_reflection, screen_xz_footprint, surface}
-#import aqua::medium::{PATH_LENGTH_MAX, water_leaving_radiance}
+#import aqua::medium::{N_WATER, PATH_LENGTH_MAX, fresnel_water_to_air, medium_radiance, water_leaving_radiance}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
@@ -454,5 +454,96 @@ fn resolve_transmission(
         }
     }
     return TransmissionState(body, vec4(0.0), false);
+}
+
+const UNDERSIDE_AIR_MARGIN: f32 = 0.05;
+const UNDERSIDE_WARP: f32 = 0.12;
+
+fn reconstruct_world_from_uv(uv: vec2<f32>, raw_depth: f32) -> vec3<f32> {
+    let ndc = vec3(uv * vec2(2.0, -2.0) + vec2(-1.0, 1.0), raw_depth);
+    let world = view.world_from_clip * vec4(ndc, 1.0);
+    return world.xyz / max(world.w, LUMINANCE_EPSILON);
+}
+
+// Water-to-air interface. Scatter along camera-to-mesh is the volume pass.
+// The window is air radiance * n² * T. TIR and the reflected lobe are
+// in-water radiance along the bounce, starting just under the surface.
+fn shade_underside(
+    in: SurfaceVertexOutput,
+    surface_lod: u32,
+    geometric_normal: vec3<f32>,
+    to_view: vec3<f32>,
+    mode: u32,
+) -> vec4<f32> {
+    let near = resolve_near_surface(in, surface_lod, geometric_normal, 0.0, mode);
+    let water_normal = safe_normalize(-near.normal, vec3(0.0, -1.0, 0.0));
+    let incident = -to_view;
+    let bounced = reflect(incident, water_normal);
+    let reflected = medium_radiance(
+        vec3(0.0),
+        bounced,
+        PATH_LENGTH_MAX,
+        0.0,
+        invocation_extinction(),
+        invocation_scatter_scale(),
+        invocation_scattering_asymmetry(),
+        vec3(1.0),
+    );
+
+    let transmitted = refract(incident, water_normal, N_WATER);
+    if dot(transmitted, transmitted) < LUMINANCE_EPSILON {
+        return vec4(reflected, 1.0);
+    }
+
+    let roughness = unresolved_wave_roughness(
+        in.undisplaced_xz,
+        to_view,
+        in.sample_data.y,
+        near.lighting_normal_strength,
+        near.filtered_detail_variance,
+    );
+    var window = sample_environment(transmitted, geometric_normal, roughness);
+    if lights.n_directional_lights > 0u {
+        let light = lights.directional_lights[0u];
+        let light_direction = safe_normalize(
+            light.direction_to_light,
+            vec3(0.0, 1.0, 0.0),
+        );
+        let sun_color = filtered_primary_light_color(
+            in.world_position,
+            light.direction_to_light,
+            light.sun_disk_angular_size,
+            light.color.rgb,
+        ) * view.exposure;
+        let disc = pow(max(dot(transmitted, light_direction), 0.0), 256.0);
+        window += sun_color * disc;
+    }
+
+#ifdef DEPTH_PREPASS
+    let viewport_origin = view.viewport.xy;
+    let viewport_size = view.viewport.zw;
+    let screen_uv = clamp(
+        (in.position.xy - viewport_origin) / viewport_size,
+        vec2(0.0),
+        vec2(1.0),
+    );
+    let warped_uv = screen_uv + surface.debug.y * near.lighting_normal.xz * UNDERSIDE_WARP;
+    if all(warped_uv >= vec2(0.0)) && all(warped_uv <= vec2(1.0)) {
+        let warped_pixel = warped_uv * (viewport_size - vec2(1.0)) + viewport_origin;
+        let warped_position = vec4(warped_pixel, in.position.zw);
+        let warped_depth = prepass_utils::prepass_depth(warped_position, 0u);
+        let behind_surface = warped_depth < in.position.z;
+        let hit = reconstruct_world_from_uv(warped_uv, warped_depth);
+        let in_air = hit.y > in.world_position.y + UNDERSIDE_AIR_MARGIN;
+        if warped_depth > 0.0 && behind_surface && in_air {
+            window = opaque_background(warped_uv);
+        }
+    }
+#endif
+
+    window *= N_WATER * N_WATER;
+    let cos_theta = max(dot(-incident, water_normal), 0.0);
+    let fresnel = fresnel_water_to_air(cos_theta);
+    return vec4(mix(window, reflected, fresnel), 1.0);
 }
 

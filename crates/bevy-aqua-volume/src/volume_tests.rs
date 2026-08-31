@@ -247,3 +247,40 @@ fn water_leaving_divides_haze_by_n_squared() {
     let leaving = haze_water / (N_WATER * N_WATER);
     assert!((leaving.x - 1.0).abs() < 0.01);
 }
+
+fn fresnel_dielectric(n1: f32, n2: f32, cos_i: f32) -> f32 {
+    let eta = n1 / n2;
+    let sin2_t = eta * eta * (1.0 - cos_i * cos_i);
+    if sin2_t >= 1.0 {
+        return 1.0;
+    }
+    let cos_t = (1.0 - sin2_t).max(0.0).sqrt();
+    let rs = (n1 * cos_i - n2 * cos_t) / (n1 * cos_i + n2 * cos_t);
+    let rp = (n2 * cos_i - n1 * cos_t) / (n2 * cos_i + n1 * cos_t);
+    0.5 * (rs * rs + rp * rp)
+}
+
+#[test]
+fn water_to_air_normal_incidence_matches_f0() {
+    let f0 = ((N_WATER - 1.0) / (N_WATER + 1.0)).powi(2);
+    let fresnel = fresnel_dielectric(N_WATER, 1.0, 1.0);
+    assert!((fresnel - f0).abs() < 1e-5);
+}
+
+#[test]
+fn water_to_air_tirs_beyond_the_critical_angle() {
+    let critical = (1.0 / N_WATER).asin();
+    let inside = fresnel_dielectric(N_WATER, 1.0, (critical - 0.05).cos());
+    let outside = fresnel_dielectric(N_WATER, 1.0, (critical + 0.05).cos());
+    assert!(inside < 1.0);
+    assert!((outside - 1.0).abs() < 1e-5);
+}
+
+#[test]
+fn underside_window_multiplies_air_radiance_by_n_squared() {
+    let air = Vec3::splat(1.0);
+    let in_water = air * (N_WATER * N_WATER);
+    let leaving = in_water / (N_WATER * N_WATER);
+    assert!((in_water.x - 1.777).abs() < 0.01);
+    assert!((leaving.x - 1.0).abs() < 1e-5);
+}

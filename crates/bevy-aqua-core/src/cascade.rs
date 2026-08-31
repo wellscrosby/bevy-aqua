@@ -7,9 +7,12 @@ use bevy::{
         CompressedImageFormats, ImageAddressMode, ImageFilterMode, ImageSampler,
         ImageSamplerDescriptor, ImageType,
     },
+    mesh::MeshVertexBufferLayoutRef,
+    pbr::{MaterialPipeline, MaterialPipelineKey},
     prelude::*,
     render::render_resource::{
-        AsBindGroup, Extent3d, ShaderType, TextureDimension, TextureFormat, TextureUsages,
+        AsBindGroup, Extent3d, RenderPipelineDescriptor, ShaderType,
+        SpecializedMeshPipelineError, TextureDimension, TextureFormat, TextureUsages,
         TextureViewDescriptor, TextureViewDimension,
     },
     shader::ShaderRef,
@@ -189,6 +192,16 @@ impl Material for CascadeMaterial {
 
     fn reads_view_transmission_texture(&self) -> bool {
         true
+    }
+
+    fn specialize(
+        _pipeline: &MaterialPipeline,
+        descriptor: &mut RenderPipelineDescriptor,
+        _layout: &MeshVertexBufferLayoutRef,
+        _key: MaterialPipelineKey<Self>,
+    ) -> Result<(), SpecializedMeshPipelineError> {
+        descriptor.primitive.cull_mode = None;
+        Ok(())
     }
 }
 

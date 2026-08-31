@@ -3,9 +3,9 @@
 //! Depth, medium, and transmission optics for Aqua shaders.
 //!
 //! `medium.wgsl` is the shared water-medium integral (particle
-//! Henyey-Greenstein plus molecular Rayleigh) and the surface
-//! water-leaving conversion (camera-ray path matching transmission, in-water
-//! radiance / n²).
+//! Henyey-Greenstein plus molecular Rayleigh), the surface water-leaving
+//! conversion (camera-ray path matching transmission, in-water radiance / n²),
+//! and the water-to-air dielectric used by the underside window.
 //! `optics.wgsl` consumes Aqua's registered cascade, material-type, wave,
 //! foam, and shore contracts.
 //! Register both before queuing the composed water material.
