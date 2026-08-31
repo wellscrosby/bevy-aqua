@@ -18,6 +18,9 @@
 //! via Henyey-Greenstein using [`WaterOptics::scattering_asymmetry`].
 //! `VolumetricLight` is not used.
 //!
+//! Opaque scene colour is scaled by that same surface-to-hit sun path before
+//! the camera-path integral, from the depth buffer. Meshes do not opt in.
+//!
 //! The cascade mesh writes the water-to-air interface on back faces. This
 //! pass integrates camera-to-hit, or to the mean plane on empty upward
 //! pixels. A single cascade sample at the camera keeps a crest underwater

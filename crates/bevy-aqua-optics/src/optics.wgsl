@@ -9,7 +9,7 @@
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
 #import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, invocation_scattering_asymmetry, sample_planar_reflection, screen_xz_footprint, surface}
-#import aqua::medium::{N_WATER, PATH_LENGTH_MAX, fresnel_water_to_air, medium_radiance, water_leaving_radiance}
+#import aqua::medium::{N_WATER, PATH_LENGTH_MAX, attenuate_underwater_scene, fresnel_water_to_air, medium_radiance, water_leaving_radiance}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
@@ -350,6 +350,31 @@ fn sample_water_medium(
     );
 }
 
+fn transmitted_scene(
+    uv: vec2<f32>,
+    surface_y: f32,
+) -> vec3<f32> {
+    let scene = opaque_background(uv);
+#ifdef DEPTH_PREPASS
+    let viewport_origin = view.viewport.xy;
+    let viewport_size = view.viewport.zw;
+    let pixel = uv * (viewport_size - vec2(1.0)) + viewport_origin;
+    let raw_depth = prepass_utils::prepass_depth(vec4(pixel, 0.0, 1.0), 0u);
+    if raw_depth <= 0.0 {
+        return scene;
+    }
+    let hit = reconstruct_world_from_uv(uv, raw_depth);
+    return attenuate_underwater_scene(
+        scene,
+        hit.y,
+        surface_y,
+        invocation_extinction(),
+    );
+#else
+    return scene;
+#endif
+}
+
 fn illuminate_bed(
     scene_colour: vec3<f32>,
     in: SurfaceVertexOutput,
@@ -372,7 +397,6 @@ fn illuminate_bed(
         incident.direction,
         incident.color,
         incident.shadow,
-        invocation_extinction(),
     );
 }
 
@@ -417,9 +441,9 @@ fn resolve_transmission(
             depth_debug.refracted_uv,
             use_refraction,
         );
-        let scene_colour = opaque_background(background_uv);
+        let scene_colour = transmitted_scene(background_uv, in.world_position.y);
         if mode == DEBUG_MODE_TRANSMISSION || mode == DEBUG_MODE_UNREFRACTED {
-            return TransmissionState(body, vec4(scene_colour, 1.0), true);
+            return TransmissionState(body, vec4(opaque_background(background_uv), 1.0), true);
         }
 
         let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
@@ -446,7 +470,7 @@ fn resolve_transmission(
                 depth_debug.refracted_uv,
                 use_refraction,
             );
-            let scene_colour = opaque_background(background_uv);
+            let scene_colour = transmitted_scene(background_uv, in.world_position.y);
             let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
             body = surface_medium_radiance(lit_scene, to_view, depth_path.path_length);
         } else if depth_path.has_background && depth_path.path_length > LUMINANCE_EPSILON {
@@ -505,7 +529,12 @@ fn underside_bounce_radiance(
         if ray_eye > scene_eye && (ray_eye - scene_eye) < TIR_SSR_THICKNESS {
             let hit = reconstruct_world_from_uv(uv, scene_depth);
             if hit.y < surface_y - UNDERSIDE_AIR_MARGIN {
-                scene = opaque_background(uv);
+                scene = attenuate_underwater_scene(
+                    opaque_background(uv),
+                    hit.y,
+                    surface_y,
+                    invocation_extinction(),
+                );
                 t_end = clamp(dot(hit - origin, bounced), TIR_SSR_START, PATH_LENGTH_MAX);
                 break;
             }

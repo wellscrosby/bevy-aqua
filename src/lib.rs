@@ -63,6 +63,7 @@ pub use bevy_aqua_query::{WaveQuery, WaveSurface};
 pub use bevy_aqua_reflect::ReflectedInWater;
 #[cfg(feature = "spray")]
 pub use bevy_aqua_spray::{SprayQuality, SpraySettings};
+
 /// Adds the ocean renderer and its simulation plugins.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AquaPlugin;

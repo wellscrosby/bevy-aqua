@@ -18,7 +18,8 @@ Ambient downwelling is vertical. Directional lights are refracted at the
 surface, then fall off along `depth / L.y`, so sun elevation changes how
 fast the water goes dark. Looking toward the sun is brighter via
 Henyey-Greenstein using `WaterOptics::scattering_asymmetry`.
-`VolumetricLight` is not used.
+`VolumetricLight` is not used. Opaque scene colour is scaled by the same
+surface-to-hit sun path from the depth buffer before the camera-path fog.
 
 The cascade mesh writes the water-to-air interface on back faces. This pass
 integrates camera-to-hit, or to the mean plane on empty upward pixels. One
@@ -29,7 +30,8 @@ Above water the pass is skipped. Crossing the surface is a hard cut.
 ## Owns
 
 - Camera-below-surface detection (`Ocean` or a containing `WaterBody`).
-- The fullscreen `volume.wgsl` composite after the main pass.
+- The fullscreen `volume.wgsl` composite after the main pass, including
+  depth-buffer sun attenuation on underwater meshes.
 
 ## Public API
 

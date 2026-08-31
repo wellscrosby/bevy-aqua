@@ -260,6 +260,40 @@ fn fresnel_dielectric(n1: f32, n2: f32, cos_i: f32) -> f32 {
     0.5 * (rs * rs + rp * rp)
 }
 
+fn sun_to_water_transmittance(sigma: Vec3, depth: f32, l_air: Vec3) -> Vec3 {
+    if l_air.y <= 0.0 || depth <= 0.0 {
+        return Vec3::ONE;
+    }
+    let l_water = refract_air_to_water(l_air).expect("upward sun");
+    let path = depth / l_water.y.max(0.02);
+    Vec3::splat(1.0 - fresnel_dielectric(1.0, N_WATER, l_air.y)) * (-sigma * path).exp()
+}
+
+#[test]
+fn above_water_keeps_full_incident_light() {
+    let t = sun_to_water_transmittance(WaterOptics::DEEP_OCEAN.extinction, 0.0, Vec3::Y);
+    assert_eq!(t, Vec3::ONE);
+}
+
+#[test]
+fn fifty_metres_of_deep_ocean_is_barely_blue() {
+    let t = sun_to_water_transmittance(WaterOptics::DEEP_OCEAN.extinction, 50.0, Vec3::Y);
+    assert!(t.x < 1e-6);
+    assert!(t.y > 0.005 && t.y < 0.01);
+    assert!(t.z > 0.07 && t.z < 0.09);
+    assert!(t.z > t.y && t.y > t.x);
+}
+
+#[test]
+fn low_sun_dies_faster_than_overhead_sun() {
+    let sigma = WaterOptics::DEEP_OCEAN.extinction;
+    let high = sun_to_water_transmittance(sigma, 20.0, Vec3::Y);
+    let low = sun_to_water_transmittance(sigma, 20.0, Vec3::new(0.8, 0.2, 0.0).normalize());
+    assert!(low.x < high.x);
+    assert!(low.y < high.y);
+    assert!(low.z < high.z);
+}
+
 #[test]
 fn water_to_air_normal_incidence_matches_f0() {
     let f0 = ((N_WATER - 1.0) / (N_WATER + 1.0)).powi(2);

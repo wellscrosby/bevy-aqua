@@ -4,7 +4,9 @@
 // The underwater pass evaluates this in water. The cascade surface converts
 // the same integral to air as water-leaving radiance along the camera ray
 // that sampled transmission (in-water radiance / n²). That ray is not
-// Snell-bent: the opaque buffer is not.
+// Snell-bent: the opaque buffer is not. Opaque colour is scaled by the
+// surface-to-hit sun path (`mesh_incident_transmittance`) before that
+// camera-path integral.
 
 #define_import_path aqua::medium
 
@@ -59,6 +61,61 @@ fn fresnel_air_to_water(cos_air: f32) -> f32 {
 
 fn fresnel_water_to_air(cos_water: f32) -> f32 {
     return fresnel_dielectric(N_WATER, 1.0, cos_water);
+}
+
+fn downwelling_transmittance(sigma: vec3<f32>, depth: f32, l_y: f32) -> vec3<f32> {
+    return exp(-sigma * (max(depth, 0.0) / max(l_y, MIN_L_Y)));
+}
+
+// Direct sunlight just under the surface, after Fresnel into water and the
+// slanted Beer-Lambert path `depth / L.y`. Above water this is 1.
+fn sun_to_water_transmittance(
+    sigma: vec3<f32>,
+    depth: f32,
+    l_air: vec3<f32>,
+) -> vec3<f32> {
+    if l_air.y <= 0.0 || depth <= 0.0 {
+        return vec3(1.0);
+    }
+    let l_water = refract_air_to_water(l_air);
+    return (1.0 - fresnel_air_to_water(l_air.y))
+        * downwelling_transmittance(sigma, depth, l_water.y);
+}
+
+// Incident scale for opaque mesh shading. The strongest upward directional
+// light uses the slanted sun path; with no sun, vertical sky downwelling.
+fn mesh_incident_transmittance(sigma: vec3<f32>, depth: f32) -> vec3<f32> {
+    if depth <= 0.0 {
+        return vec3(1.0);
+    }
+    var transmittance = downwelling_transmittance(sigma, depth, 1.0);
+    var best_illuminance = 0.0;
+    let directional_light_count = lights.n_directional_lights;
+    for (var light_index = 0u; light_index < directional_light_count; light_index += 1u) {
+        let light = &lights.directional_lights[light_index];
+        let l_air = (*light).direction_to_light.xyz;
+        if l_air.y <= 0.0 {
+            continue;
+        }
+        let illuminance = l_air.y * dot(
+            max((*light).color.rgb, vec3(0.0)),
+            vec3(0.2126, 0.7152, 0.0722),
+        );
+        if illuminance > best_illuminance {
+            best_illuminance = illuminance;
+            transmittance = sun_to_water_transmittance(sigma, depth, l_air);
+        }
+    }
+    return transmittance;
+}
+
+fn attenuate_underwater_scene(
+    scene: vec3<f32>,
+    hit_y: f32,
+    surface_y: f32,
+    sigma: vec3<f32>,
+) -> vec3<f32> {
+    return scene * mesh_incident_transmittance(sigma, max(surface_y - hit_y, 0.0));
 }
 
 fn refract_air_to_water(l_air: vec3<f32>) -> vec3<f32> {

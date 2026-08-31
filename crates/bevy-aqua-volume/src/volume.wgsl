@@ -4,7 +4,7 @@
     resolve_lod,
     sample_displacement,
 }
-#import aqua::medium::{medium_radiance, PATH_LENGTH_MAX}
+#import aqua::medium::{medium_radiance, mesh_incident_transmittance, PATH_LENGTH_MAX}
 #import bevy_pbr::mesh_view_bindings::view
 #import bevy_pbr::view_transformations::{
     frag_coord_to_ndc,
@@ -91,6 +91,11 @@ fn fragment(
     if raw_depth > 0.0 {
         let world = position_ndc_to_world(frag_coord_to_ndc(vec4(in.position.xy, raw_depth, 1.0)));
         t_scene = min(length(world - camera), PATH_LENGTH_MAX);
+        let mesh_surface = plane + displacement_y(world.xz);
+        scene *= mesh_incident_transmittance(
+            volume.extinction.rgb,
+            max(mesh_surface - world.y, 0.0),
+        );
     }
     let t_surface = intersect_surface_metres(camera, rd_world, PATH_LENGTH_MAX, surface);
     var t_end = min(t_scene, PATH_LENGTH_MAX);

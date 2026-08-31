@@ -72,7 +72,6 @@ fn caustic_bed_radiance(
     sun_direction: vec3<f32>,
     sun_unexposed_radiance: vec3<f32>,
     sun_shadow: f32,
-    extinction: vec3<f32>,
 ) -> vec3<f32> {
     let strength = surface.caustics.x * surface.sea_floor.w;
     if strength <= 0.0 {
@@ -101,17 +100,13 @@ fn caustic_bed_radiance(
         0.0,
         1.0,
     );
-    // The incoming sunlight path lengthens toward the horizon. Outgoing bed
-    // radiance receives the normal camera-path attenuation after this function.
+    // The incoming sunlight already sits in the opaque colour after the
+    // screen-space light-path scale. Focus that attenuated bed rather than
+    // applying a second Beer-Lambert path here.
     let bed_incidence = max(sun_direction.y, 0.0);
-    let incoming_path = water_depth / max(bed_incidence, 0.02);
-    let incoming_transmission = exp(-extinction * incoming_path);
     let sun_chroma = max(sun_unexposed_radiance, vec3(0.0))
         / max(direct_lux, CAUSTIC_DAYLIGHT_MIN_LUX);
-    // Focus the bed's existing pre-exposed radiance rather than adding raw lux
-    // as an emissive overlay. This preserves bed color and camera exposure.
     let focus = strength * depth_gate * pattern * daylight
         * bed_incidence * sun_shadow;
-    return scene_colour + scene_colour * sun_chroma
-        * incoming_transmission * focus;
+    return scene_colour + scene_colour * sun_chroma * focus;
 }
