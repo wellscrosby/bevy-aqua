@@ -12,11 +12,10 @@
 //! the same integral to air as water-leaving radiance along the camera ray
 //! that sampled transmission (in-water radiance / n²).
 //!
-//! Ambient downwelling is vertical. Each directional light is refracted at
-//! the surface (Snell, Fresnel) and then attenuated along `depth / L.y`, so
-//! a lower sun dies faster with depth. Looking toward the sun is brighter
-//! via Henyey-Greenstein using [`WaterOptics::scattering_asymmetry`].
-//! `VolumetricLight` is not used.
+//! Each directional light is refracted at the surface (Snell, Fresnel) and
+//! then attenuated along `depth / L.y`, so a lower sun dies faster with
+//! depth. Looking toward the sun is brighter via Henyey-Greenstein using
+//! [`WaterOptics::scattering_asymmetry`]. `VolumetricLight` is not used.
 //!
 //! Opaque scene colour is scaled by that same surface-to-hit sun path before
 //! the camera-path integral, from the depth buffer. Meshes do not opt in.
@@ -30,7 +29,6 @@
 
 use bevy::{
     asset::embedded_asset,
-    camera::Exposure,
     prelude::*,
     render::extract_resource::{ExtractResource, ExtractResourcePlugin},
 };
@@ -69,7 +67,6 @@ struct ExtractedVolume {
     surface_level: f32,
     sample_waves: bool,
     optics: WaterOptics,
-    environment_intensity: f32,
 }
 
 impl Default for ExtractedVolume {
@@ -79,7 +76,6 @@ impl Default for ExtractedVolume {
             surface_level: 0.0,
             sample_waves: false,
             optics: WaterOptics::DEEP_OCEAN,
-            environment_intensity: 0.0,
         }
     }
 }
@@ -114,20 +110,13 @@ pub(crate) fn sample_medium(
 }
 
 fn detect_underwater(
-    cameras: Query<
-        (
-            &GlobalTransform,
-            Option<&Exposure>,
-            Option<&EnvironmentMapLight>,
-        ),
-        With<OceanView>,
-    >,
+    cameras: Query<&GlobalTransform, With<OceanView>>,
     ocean: Option<Res<Ocean>>,
     settings: Res<AquaSettings>,
     bodies: Res<ResolvedWaterBodies>,
     mut volume: ResMut<ExtractedVolume>,
 ) {
-    let Some((transform, exposure, environment)) = cameras.iter().next() else {
+    let Some(transform) = cameras.iter().next() else {
         *volume = ExtractedVolume::default();
         return;
     };
@@ -141,17 +130,10 @@ fn detect_underwater(
         return;
     };
 
-    let exposure = exposure.copied().unwrap_or_default().exposure();
-    let environment_intensity = environment
-        .map(|light| light.intensity * exposure)
-        .filter(|intensity| *intensity > 0.0)
-        .unwrap_or(1.0);
-
     *volume = ExtractedVolume {
         active: true,
         surface_level,
         sample_waves,
         optics,
-        environment_intensity,
     };
 }

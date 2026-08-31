@@ -15,7 +15,6 @@
 const FRAC_4_PI: f32 = 0.07957747154594767;
 const FRAC_3_16_PI: f32 = 0.05968310365946022;
 const PATH_LENGTH_MAX: f32 = 256.0;
-const SKY_FRACTION: f32 = 0.4;
 const N_WATER: f32 = 1.333;
 const MIN_L_Y: f32 = 0.02;
 const KAPPA_EPS: f32 = 1e-5;
@@ -139,7 +138,6 @@ fn water_leaving_radiance(
     sigma_t: vec3<f32>,
     scatter_scale: f32,
     g: f32,
-    sky_fallback: vec3<f32>,
 ) -> vec3<f32> {
     let t = min(max(t_end, 0.0), PATH_LENGTH_MAX);
     return medium_radiance(
@@ -150,7 +148,6 @@ fn water_leaving_radiance(
         sigma_t,
         scatter_scale,
         g,
-        sky_fallback,
     ) / (N_WATER * N_WATER);
 }
 
@@ -186,7 +183,6 @@ fn medium_radiance(
     sigma_t: vec3<f32>,
     scatter_scale: f32,
     g: f32,
-    sky_fallback: vec3<f32>,
 ) -> vec3<f32> {
     if t_end < 1e-4 {
         return scene;
@@ -196,7 +192,6 @@ fn medium_radiance(
     let sigma_s = min(sigma_t, sigma_p + RAYLEIGH);
     let exposure = view.exposure;
 
-    var sun_surface = vec3(0.0);
     var inscatter = vec3<f32>(0.0);
     let directional_light_count = lights.n_directional_lights;
     for (var light_index = 0u; light_index < directional_light_count; light_index += 1u) {
@@ -206,7 +201,6 @@ fn medium_radiance(
             continue;
         }
         let e_air = (*light).color.rgb * exposure;
-        sun_surface += e_air * l_air.y;
         let l_water = refract_air_to_water(l_air);
         let e_water = e_air * (1.0 - fresnel_air_to_water(l_air.y));
         let phase = mixed_phase(dot(l_water, rd), sigma_p, g);
@@ -219,20 +213,6 @@ fn medium_radiance(
             e_water * phase,
         );
     }
-
-    let sky = select(
-        sky_fallback,
-        sun_surface * SKY_FRACTION,
-        any(sun_surface > vec3(1e-6)),
-    );
-    inscatter += sigma_s * downwelling_integral(
-        sigma_t,
-        t_end,
-        rd.y,
-        1.0,
-        d0,
-        sky * mixed_phase(rd.y, sigma_p, g),
-    );
 
     let transmittance = exp(-sigma_t * t_end);
     return scene * transmittance + inscatter;

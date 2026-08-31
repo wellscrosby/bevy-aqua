@@ -13,6 +13,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- Medium in-scatter comes only from directional lights. The vertical sky downwelling lobe is gone.
 - Medium in-scatter is a normalized mix of particle Henyey-Greenstein and molecular Rayleigh. The isotropic `SUN_BODY` phase gain is gone. `WaterOptics` presets use beam extinction near Pope-Fry absorption plus scatter.
 - Cascade surface shading uses the same `aqua::medium` integral as the underwater pass, converted to water-leaving radiance along the camera ray that sampled transmission (in-water radiance / n²). The water body is no longer lit as Lambert plastic; foam, Fresnel, and crest SSS stay on the mesh.
 - `WaterOptics` now includes Henyey-Greenstein `scattering_asymmetry`. `WaterVolume` and `AquaSettings::volume` are removed; the underwater pass is no longer optional, and the old `inscatter` gain is gone.

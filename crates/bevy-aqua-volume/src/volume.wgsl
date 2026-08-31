@@ -31,7 +31,7 @@ struct VolumeUniform {
 @group(1) @binding(6) var<uniform> waves: AnimWavesUniform;
 
 fn displacement_y(world_xz: vec2<f32>) -> f32 {
-    if volume.environment.w < 0.5 {
+    if volume.environment.y < 0.5 {
         return 0.0;
     }
     let sampled_xz = world_xz - waves.flow.xy * waves.time.x;
@@ -115,8 +115,7 @@ fn fragment(
             d0,
             volume.extinction.rgb,
             volume.extinction.w,
-            volume.environment.z,
-            vec3(volume.environment.x),
+            volume.environment.x,
         ),
         1.0,
     );

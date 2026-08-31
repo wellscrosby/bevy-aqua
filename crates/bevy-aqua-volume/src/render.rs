@@ -279,10 +279,10 @@ fn volume_uniform(volume: &ExtractedVolume) -> VolumeUniform {
     VolumeUniform {
         extinction: optics.extinction.extend(optics.scatter_scale.max(0.0)),
         environment: Vec4::new(
-            volume.environment_intensity,
-            0.0,
             volume.optics.scattering_asymmetry,
             if volume.sample_waves { 1.0 } else { 0.0 },
+            0.0,
+            0.0,
         ),
         sea: Vec4::new(volume.surface_level, 0.0, 0.0, 0.0),
     }

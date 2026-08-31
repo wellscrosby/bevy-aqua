@@ -5,21 +5,21 @@ water surface, a Core3d pass applies RGB Beer-Lambert transmittance and
 closed-form in-scatter along the underwater segment. Particle scatter is a
 weak, slightly blue coefficient times `scatter_scale`, plus molecular
 Rayleigh, clamped below extinction, so red absorption is not scattered
-back. Haze colour is the sun and sky after downwelling, not the cascade
-body paints. The phase is a normalized mix of particle Henyey-Greenstein
-and Rayleigh.
+back. Haze colour is directional sunlight after downwelling, not the
+cascade body paints. The phase is a normalized mix of particle
+Henyey-Greenstein and Rayleigh.
 
 The same `aqua::medium` integral shades the cascade surface from above as
 water-leaving radiance: the camera ray that sampled transmission, the
 in-water radiance divided by `n²`, and Fresnel mixing that body with sky
 reflection. This pass still only runs underwater.
 
-Ambient downwelling is vertical. Directional lights are refracted at the
-surface, then fall off along `depth / L.y`, so sun elevation changes how
-fast the water goes dark. Looking toward the sun is brighter via
-Henyey-Greenstein using `WaterOptics::scattering_asymmetry`.
-`VolumetricLight` is not used. Opaque scene colour is scaled by the same
-surface-to-hit sun path from the depth buffer before the camera-path fog.
+Directional lights are refracted at the surface, then fall off along
+`depth / L.y`, so sun elevation changes how fast the water goes dark.
+Looking toward the sun is brighter via Henyey-Greenstein using
+`WaterOptics::scattering_asymmetry`. `VolumetricLight` is not used. Opaque
+scene colour is scaled by the same surface-to-hit sun path from the depth
+buffer before the camera-path fog.
 
 The cascade mesh writes the water-to-air interface on back faces. This pass
 integrates camera-to-hit, or to the mean plane on empty upward pixels. One

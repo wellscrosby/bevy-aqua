@@ -97,7 +97,6 @@ fn surface_medium_radiance(scene: vec3<f32>, to_view: vec3<f32>, t_end: f32) -> 
         invocation_extinction(),
         invocation_scatter_scale(),
         invocation_scattering_asymmetry(),
-        vec3(1.0),
     );
 }
 
@@ -549,7 +548,6 @@ fn underside_bounce_radiance(
         invocation_extinction(),
         invocation_scatter_scale(),
         invocation_scattering_asymmetry(),
-        vec3(1.0),
     );
 }
 
