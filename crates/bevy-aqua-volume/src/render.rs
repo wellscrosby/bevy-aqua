@@ -36,8 +36,8 @@ use bevy::{
     shader::ShaderDefVal,
 };
 use bevy_aqua_core::{
-    AnimWavesUniform, AnimWavesUniformSlot, BedHeightMap, Data, GpuLayout, GpuWave, LOD_COUNT,
-    OceanView, WAVE_SLOTS, bed, pass,
+    AnimWavesUniform, AnimWavesUniformSlot, Data, GpuLayout, GpuWave, LOD_COUNT, OceanView,
+    WAVE_SLOTS, pass,
 };
 
 use super::ExtractedVolume;
@@ -72,10 +72,6 @@ pub(super) fn add(app: &mut App) {
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
 struct VolumeUniform {
     extinction: Vec4,
-    deep_color: Vec4,
-    grazing_color: Vec4,
-    shallow_color: Vec4,
-    sss_tint: Vec4,
     environment: Vec4,
     sea: Vec4,
 }
@@ -116,7 +112,6 @@ impl VolumePipeline {
                 texture_2d_array(TextureSampleType::Float { filterable: true }),
                 sampler(SamplerBindingType::Filtering),
                 uniform_buffer::<AnimWavesUniform>(false),
-                texture_2d(TextureSampleType::Float { filterable: false }),
             ),
         );
         let entries_msaa = BindGroupLayoutEntries::sequential(
@@ -129,7 +124,6 @@ impl VolumePipeline {
                 texture_2d_array(TextureSampleType::Float { filterable: true }),
                 sampler(SamplerBindingType::Filtering),
                 uniform_buffer::<AnimWavesUniform>(false),
-                texture_2d(TextureSampleType::Float { filterable: false }),
             ),
         );
         let sampler = render_device.create_sampler(&SamplerDescriptor {
@@ -215,7 +209,7 @@ impl SpecializedRenderPipeline for VolumePipeline {
         } else {
             self.layout.clone()
         };
-        let mut shader_defs = vec![ShaderDefVal::from("SHADOW_FILTER_METHOD_HARDWARE_2X2")];
+        let mut shader_defs = Vec::new();
         if key.samples > 1 {
             shader_defs.push(ShaderDefVal::from("MULTISAMPLED"));
         }
@@ -293,23 +287,14 @@ fn prepare_depth_usages(
 fn volume_uniform(volume: &ExtractedVolume) -> VolumeUniform {
     let optics = volume.optics;
     VolumeUniform {
-        extinction: optics.extinction.extend(optics.scatter_scale),
-        deep_color: optics.deep_color.extend(1.0),
-        grazing_color: optics.grazing_color.extend(1.0),
-        shallow_color: optics.shallow_color.extend(7.0),
-        sss_tint: optics.sss_tint.extend(1.0),
+        extinction: optics.extinction.extend(optics.scatter_scale.max(0.0)),
         environment: Vec4::new(
             volume.environment_intensity,
-            0.15,
+            volume.volume.inscatter.max(0.0),
             volume.volume.scattering_asymmetry,
             if volume.sample_waves { 1.0 } else { 0.0 },
         ),
-        sea: Vec4::new(
-            volume.surface_level,
-            volume.volume.step_count.max(1) as f32,
-            0.0,
-            0.0,
-        ),
+        sea: Vec4::new(volume.surface_level, 0.0, 0.0, 0.0),
     }
 }
 
@@ -338,8 +323,6 @@ fn draw_volume(
     images: Res<RenderAssets<GpuImage>>,
     data: Option<Res<Data>>,
     waves_slot: Option<Res<AnimWavesUniformSlot>>,
-    fallback: Res<bed::GpuFallback>,
-    bed_map: Option<Res<BedHeightMap>>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     mut prepared: ResMut<Prepared>,
@@ -356,9 +339,6 @@ fn draw_volume(
         return;
     };
     let Some(gpu_pipeline) = pipeline_cache.get_render_pipeline(pipeline_id.0) else {
-        return;
-    };
-    let Some(bed_height) = bed::gpu_image(bed_map.as_deref(), &fallback, &images) else {
         return;
     };
 
@@ -418,7 +398,6 @@ fn draw_volume(
             waves_view,
             &pipeline.waves_sampler,
             anim_waves,
-            &bed_height.texture_view,
         )),
     );
 

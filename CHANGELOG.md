@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - A focused native/WebGPU `debug_views` example that automatically cycles
   through every `AquaDebug` diagnostic mode.
-- Optional underwater volume pass (`AquaSettings::volume`): raymarched RGB Beer-Lambert transmittance, in-scatter from `VolumetricLight` sources, and shadow-mapped shafts, gated off by default.
+- Optional underwater volume pass (`AquaSettings::volume`): closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, Henyey-Greenstein), gated off by default. Particle scatter is a weak blue-tilted coefficient times `scatter_scale`, not a copy of extinction.
 
 ## [0.1.3] - 2026-08-30
 

@@ -3,6 +3,38 @@ use bevy_aqua_core::{AquaSettings, Ocean, ResolvedWaterBody, WaterOptics, WaterS
 
 use super::sample_medium;
 
+const N_WATER: f32 = 1.333;
+
+fn refract_air_to_water(l_air: Vec3) -> Option<Vec3> {
+    if l_air.y <= 0.0 {
+        return None;
+    }
+    let sin2_air = (1.0 - l_air.y * l_air.y).max(0.0);
+    let sin2_water = sin2_air / (N_WATER * N_WATER);
+    let cos_water = (1.0 - sin2_water).max(0.0).sqrt();
+    let horiz = Vec2::new(l_air.x, l_air.z);
+    let horiz_len = horiz.length();
+    let xz = if horiz_len > 1e-8 {
+        horiz / horiz_len * sin2_water.sqrt()
+    } else {
+        Vec2::ZERO
+    };
+    Some(Vec3::new(xz.x, cos_water, xz.y))
+}
+
+fn downwelling_integral(sigma: f32, t: f32, rd_y: f32, l_y: f32, d0: f32) -> f32 {
+    let ly = l_y.max(0.02);
+    let i0 = (-sigma * (d0 / ly)).exp();
+    let kappa = sigma * (1.0 - rd_y / ly);
+    let integral = if kappa.abs() <= 1e-5 {
+        t
+    } else {
+        let optical = (kappa * t).clamp(-80.0, 80.0);
+        (1.0 - (-optical).exp()) / kappa
+    };
+    i0 * integral
+}
+
 fn circle_body(
     level: f32,
     center: Vec2,
@@ -91,4 +123,55 @@ fn camera_below_ocean_outside_a_raised_pond_uses_the_ocean() {
     assert_eq!(under.0, 0.0);
     assert_eq!(under.1, WaterOptics::DEEP_OCEAN);
     assert!(under.2);
+}
+
+#[test]
+fn overhead_sun_does_not_refract() {
+    let water = refract_air_to_water(Vec3::Y).unwrap();
+    assert!(water.distance(Vec3::Y) < 1e-5);
+}
+
+#[test]
+fn grazing_sun_stays_steeper_than_snell_window() {
+    let air = Vec3::new(1.0, 0.05, 0.0).normalize();
+    let water = refract_air_to_water(air).unwrap();
+    assert!(water.y > 0.65);
+    assert!(water.y > air.y);
+    assert!(refract_air_to_water(Vec3::new(1.0, -0.1, 0.0)).is_none());
+}
+
+#[test]
+fn lower_sun_dies_faster_with_depth() {
+    let sigma = 0.3;
+    let t = 20.0;
+    let d0 = 8.0;
+    let overhead = downwelling_integral(sigma, t, 0.0, 1.0, d0);
+    let low = downwelling_integral(sigma, t, 0.0, 0.66, d0);
+    assert!(low < overhead);
+}
+
+fn particle_scatter(scatter_scale: f32) -> Vec3 {
+    Vec3::new(0.85, 1.0, 1.22) * 0.02 * scatter_scale.max(0.0)
+}
+
+#[test]
+fn red_extinction_is_mostly_absorption() {
+    let optics = WaterOptics::DEEP_OCEAN;
+    let sigma_s = particle_scatter(optics.scatter_scale).min(optics.extinction);
+    let omega = sigma_s / optics.extinction;
+    assert!(sigma_s.x < sigma_s.y);
+    assert!(sigma_s.y < sigma_s.z);
+    assert!(omega.x < 0.05);
+    assert!(omega.x < omega.y);
+}
+
+#[test]
+fn looking_along_the_light_uses_path_length() {
+    let sigma = 0.3;
+    let t = 12.0;
+    let l_y = 0.8;
+    let d0 = 5.0;
+    let along = downwelling_integral(sigma, t, l_y, l_y, d0);
+    let expected = t * (-sigma * (d0 / l_y)).exp();
+    assert!((along - expected).abs() < 1e-4);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "bevy-aqua-volume"
-description = "Underwater volumetric lighting for Aqua: raymarched in-scatter, shadows, and Beer-Lambert transmittance."
+description = "Underwater volumetric lighting for Aqua: closed-form in-scatter and Beer-Lambert transmittance."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

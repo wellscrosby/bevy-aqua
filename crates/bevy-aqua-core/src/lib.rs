@@ -110,8 +110,9 @@ pub struct WaterOptics {
     /// Per-channel extinction in inverse metres. Clear mountain water:
     /// red dies a little faster than green/blue, giving brown-green pools.
     pub extinction: Vec3,
-    /// Multiplier on the volume-scatter endpoint. Small values keep the
-    /// deep-pool colour dark instead of ocean turquoise.
+    /// Particle-scatter multiplier for the underwater volume, and a scale on
+    /// the surface scatter endpoint. `1` is the ocean particle load. Small
+    /// values keep deep pools dark instead of ocean turquoise.
     pub scatter_scale: f32,
     /// Surface roughness driving the Fresnel response; negative inherits
     /// the ocean value. Calm fresh water wants ~0.1 so grazing angles
@@ -385,24 +386,26 @@ pub struct AquaSettings {
     pub volume: Option<WaterVolume>,
 }
 
-/// Raymarched underwater in-scatter, volumetric shadows, and Beer-Lambert
-/// transmittance along the view ray. Far-plane pixels march through the water
-/// instead of ending at the reconstructed clip point. Lights need Bevy's
-/// `VolumetricLight` to cast shafts.
+/// Closed-form underwater in-scatter and Beer-Lambert transmittance.
+///
+/// Far-plane pixels integrate a bounded water path instead of ending at the
+/// reconstructed clip point. Directional lights drive downwelling after
+/// refraction at the surface. `VolumetricLight` is not used.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WaterVolume {
-    /// Raymarch samples along the underwater segment.
-    pub step_count: u32,
-    /// Henyey-Greenstein `g`. Higher values brighten shafts when looking
-    /// toward the light and darken them when looking away.
+    /// Henyey-Greenstein `g`. Higher values brighten looking toward the sun
+    /// and darken looking away.
     pub scattering_asymmetry: f32,
+    /// Multiplier on underwater in-scatter. `1` is the default haze. Does
+    /// not change how fast the scene itself is extinguished.
+    pub inscatter: f32,
 }
 
 impl Default for WaterVolume {
     fn default() -> Self {
         Self {
-            step_count: 48,
             scattering_asymmetry: 0.8,
+            inscatter: 1.0,
         }
     }
 }

@@ -1,17 +1,23 @@
 //! Underwater volume composite for Aqua.
 //!
 //! When [`AquaSettings::volume`] is set and the camera sits below the local
-//! water surface, a fullscreen Core3d pass raymarches the underwater segment
-//! of each view ray. Empty far-plane pixels march a bounded view ray through
-//! the water instead of reconstructing the far clip as the path end.
-//! Transmittance uses the body's RGB extinction. In-scatter uses the cascade
-//! scatter colours (Godot albedo, SSS tint, body albedo) and a scatter
-//! coefficient from the green/blue extinction, so red absorption does not
-//! glow magenta in the surface layer. The water darkens with depth.
-//! `VolumetricLight` sources add shadow-mapped shafts on top.
+//! water surface, a fullscreen Core3d pass applies RGB Beer-Lambert
+//! transmittance and closed-form in-scatter along the underwater segment.
+//! Empty far-plane pixels integrate a bounded path through the water instead
+//! of reconstructing the far clip as the path end. Extinction is absorption
+//! plus scatter. Particle scatter is a weak, slightly blue coefficient times
+//! [`WaterOptics::scatter_scale`], clamped below `σt`, so red dies instead of
+//! glowing. In-scatter colour is the downwelling light, not the surface paints.
 //!
-//! The cascade mesh is unchanged. The ray is clipped against cascade
-//! displacement when ocean waves are sampled. Above water the pass is skipped.
+//! Ambient downwelling is vertical. Each directional light is refracted at
+//! the surface (Snell, Fresnel) and then attenuated along `depth / L.y`, so
+//! a lower sun dies faster with depth. Body in-scatter is that sun fill;
+//! Henyey-Greenstein adds a brighter lobe toward the sun.
+//! [`WaterVolume::inscatter`] scales the haze. `VolumetricLight` is not used.
+//!
+//! The cascade mesh is unchanged. The medium is the mean water plane. A
+//! single cascade sample at the camera keeps a crest underwater and rejects
+//! air. Above water the pass is skipped.
 
 #![warn(unreachable_pub)]
 
