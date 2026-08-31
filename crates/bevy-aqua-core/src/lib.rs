@@ -101,30 +101,30 @@ pub struct AnimWavesStatus {
 }
 
 /// Authored water optics for one body: Beer-Lambert extinction per channel,
-/// a scale on the volume-scatter endpoint, and the surface colours of an
-/// ocean optics preset. Localized bodies shade from `extinction`,
-/// `scatter_scale`, and `sun_roughness`; the global ocean preset
-/// ([`AquaSettings::water_optics`]) additionally reads the colour fields.
+/// particle-scatter scale, and colour fields kept on the preset ABI.
+/// Localized bodies shade from `extinction`, `scatter_scale`, and
+/// `sun_roughness`. `shallow_color` alpha is the metric depth used to
+/// classify far-tier water as deep.
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct WaterOptics {
     /// Per-channel extinction in inverse metres. Clear mountain water:
     /// red dies a little faster than green/blue, giving brown-green pools.
     pub extinction: Vec3,
-    /// Particle-scatter multiplier for the underwater volume, and a scale on
-    /// the surface scatter endpoint. `1` is the ocean particle load. Small
-    /// values keep deep pools dark instead of ocean turquoise.
+    /// Particle-scatter multiplier for the underwater volume and the surface
+    /// body. `1` is the ocean particle load. Small values keep deep pools
+    /// dark instead of filling them with in-scatter.
     pub scatter_scale: f32,
     /// Surface roughness driving the Fresnel response; negative inherits
     /// the ocean value. Calm fresh water wants ~0.1 so grazing angles
     /// reflect the sky at near-Schlick strength instead of the damped
     /// ocean ceiling (~16% at 0.4).
     pub sun_roughness: f32,
-    /// Deep-water body colour.
+    /// Deep-water paint. Unused by the shared medium; kept on the preset ABI.
     pub deep_color: Vec3,
-    /// Grazing-angle reflection tint.
+    /// Grazing-angle paint. Unused by the shared medium; kept on the preset ABI.
     pub grazing_color: Vec3,
-    /// Coastal scatter colour; alpha carries the metric depth at which it
-    /// reaches deep water.
+    /// Coastal scatter colour; alpha is the metric depth at which far-tier
+    /// shading treats the water as deep.
     pub shallow_color: Vec3,
     /// Sunlit subsurface scattering tint through pinched crests.
     pub sss_tint: Vec3,
@@ -382,15 +382,19 @@ pub struct AquaSettings {
     pub reflections: ReflectionMode,
     /// Procedural bed caustics; `None` disables both texture samples.
     pub caustics: Option<Caustics>,
-    /// Underwater volumetric lighting. `None` skips the pass.
+    /// Underwater volumetric lighting. `None` skips the fullscreen pass.
+    /// `inscatter` and `scattering_asymmetry` still feed the surface body
+    /// through [`WaterVolume::default`] when this is `None`.
     pub volume: Option<WaterVolume>,
 }
 
 /// Closed-form underwater in-scatter and Beer-Lambert transmittance.
 ///
-/// Far-plane pixels integrate a bounded water path instead of ending at the
-/// reconstructed clip point. Directional lights drive downwelling after
-/// refraction at the surface. `VolumetricLight` is not used.
+/// The cascade surface body uses the same integral, starting at the mesh with
+/// `d0 = 0`. Far-plane pixels in the underwater pass integrate a bounded water
+/// path instead of ending at the reconstructed clip point. Directional lights
+/// drive downwelling after refraction at the surface. `VolumetricLight` is
+/// not used.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WaterVolume {
     /// Henyey-Greenstein `g`. Higher values brighten looking toward the sun

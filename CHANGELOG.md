@@ -10,6 +10,10 @@ All notable changes to this project are documented here. The format follows [Kee
   through every `AquaDebug` diagnostic mode.
 - Optional underwater volume pass (`AquaSettings::volume`): closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, Henyey-Greenstein), gated off by default. Particle scatter is a weak blue-tilted coefficient times `scatter_scale`, not a copy of extinction.
 
+### Changed
+
+- Cascade surface body shading uses the same `aqua::medium` integral as the underwater pass, instead of mixing an authored scatter endpoint with Beer-Lambert fog. Refraction, Fresnel, foam, and crest SSS stay on the mesh.
+
 ## [0.1.3] - 2026-08-30
 
 ### Added

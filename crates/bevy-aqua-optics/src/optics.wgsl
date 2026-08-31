@@ -8,7 +8,8 @@
     mesh_view_bindings::{globals, lights, view},
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
-#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, sample_planar_reflection, screen_xz_footprint, surface}
+#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, sample_planar_reflection, screen_xz_footprint, surface}
+#import aqua::medium::{PATH_LENGTH_MAX, medium_radiance}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
@@ -86,14 +87,17 @@ fn deep_water_weight(water_depth: f32) -> f32 {
     return smoothstep(0.35, surface.shallow_color.a, water_depth);
 }
 
-fn depth_aware_body_albedo(
-    water_depth: f32,
-    deep_body_albedo: vec3<f32>,
-) -> vec3<f32> {
-    return mix(
-        surface.shallow_color.rgb,
-        deep_body_albedo,
-        deep_water_weight(water_depth),
+fn surface_medium_radiance(scene: vec3<f32>, to_view: vec3<f32>, t_end: f32) -> vec3<f32> {
+    return medium_radiance(
+        scene,
+        -to_view,
+        t_end,
+        0.0,
+        invocation_extinction(),
+        invocation_scatter_scale(),
+        surface.far_tier.z,
+        surface.far_tier.w,
+        vec3(1.0),
     );
 }
 
@@ -114,17 +118,10 @@ fn far_field_water(
         ),
         vec3(0.0, 1.0, 0.0),
     );
-    let view_vertical = abs(to_view.y);
-    let deep_body_albedo = mix(
-        surface.grazing_color.rgb,
-        surface.deep_color.rgb,
-        view_vertical,
-    );
-    // Camera distance must not turn a shallow lake into deep ocean. Keep the
-    // near path's bed-depth color classification while omitting transmission.
-    let body_albedo = depth_aware_body_albedo(water_depth, deep_body_albedo);
+    let t_end = min(PATH_LENGTH_MAX, water_depth / max(abs(to_view.y), 0.02));
     let diffuse_irradiance = sample_diffuse_environment(vec3(0.0, 1.0, 0.0));
-    var body = diffuse_irradiance * (body_albedo + GODOT_WATER_ALBEDO);
+    var body = surface_medium_radiance(vec3(0.0), to_view, t_end);
+    body += diffuse_irradiance * GODOT_WATER_ALBEDO;
 
     let perceptual_roughness = max(surface.reflection.w, 0.05);
     let reflection = reflect(-to_view, lighting_normal);
@@ -332,19 +329,9 @@ fn sample_water_medium(
     in: SurfaceVertexOutput,
     surface_lod: u32,
     lighting_normal: vec3<f32>,
-    to_view: vec3<f32>,
     mode: u32,
 ) -> MediumState {
     let water_depth = blended_water_depth(in.undisplaced_xz);
-    let view_vertical = abs(to_view.y);
-    let deep_body_albedo = mix(
-        surface.grazing_color.rgb,
-        surface.deep_color.rgb,
-        view_vertical,
-    );
-    // Metric SeaFloorDepth shifts only the volume-scatter endpoint. Reflection,
-    // foam, and camera-depth transmission remain on their existing lanes.
-    let body_albedo = depth_aware_body_albedo(water_depth, deep_body_albedo);
     var diffuse_irradiance = vec3(0.0);
     if mode >= DEBUG_MODE_BEAUTY {
         diffuse_irradiance = sample_diffuse_environment(lighting_normal);
@@ -358,7 +345,6 @@ fn sample_water_medium(
         );
     }
     return MediumState(
-        body_albedo,
         diffuse_irradiance,
         water_depth,
         foam_density,
@@ -394,13 +380,13 @@ fn illuminate_bed(
 fn resolve_transmission(
     in: SurfaceVertexOutput,
     normal: vec3<f32>,
-    scatter_colour: vec3<f32>,
+    to_view: vec3<f32>,
     medium: MediumState,
     foam: FoamState,
     primary: PrimaryLightState,
     mode: u32,
 ) -> TransmissionState {
-    var body = scatter_colour;
+    var body = surface_medium_radiance(vec3(0.0), to_view, PATH_LENGTH_MAX);
     var shared_depth_path = foam.depth_path;
     var has_shared_depth_path = foam.has_depth_path;
     if mode >= DEBUG_MODE_WATER_PATH && mode <= DEBUG_MODE_SEA_FLOOR {
@@ -437,11 +423,8 @@ fn resolve_transmission(
             return TransmissionState(body, vec4(scene_colour, 1.0), true);
         }
 
-        // Crest `OceanEmission.hlsl:254-266`: per-channel Beer-Lambert fog.
-        // The colour ramp emerges from extinction; there is no authored ramp.
         let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
-        let alpha = 1.0 - exp(-invocation_extinction() * depth_debug.path_length);
-        body = mix(lit_scene, scatter_colour, alpha);
+        body = surface_medium_radiance(lit_scene, to_view, depth_debug.path_length);
         if mode == DEBUG_MODE_BEER_LAMBERT {
             return TransmissionState(body, vec4(body, 1.0), true);
         }
@@ -451,11 +434,7 @@ fn resolve_transmission(
             has_shared_depth_path = true;
         }
         let depth_path = shared_depth_path;
-        // Reduce extinction in the first few metres so the seabed stays
-        // visible while the coastal scatter endpoint supplies turquoise color.
-        let deep_weight = smoothstep(0.35, surface.shallow_color.a, medium.water_depth);
-        let shallow_extinction_scale = mix(vec3(0.52, 0.42, 0.62), vec3(1.0), deep_weight);
-        let extinction = invocation_extinction() * shallow_extinction_scale;
+        let extinction = invocation_extinction();
         let minimum_extinction = min(extinction.r, min(extinction.g, extinction.b));
         let optical_depth = minimum_extinction * depth_path.path_length;
         if depth_path.has_background
@@ -470,12 +449,10 @@ fn resolve_transmission(
             );
             let scene_colour = opaque_background(background_uv);
             let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
-            let alpha = 1.0 - exp(-extinction * depth_debug.path_length);
-            body = mix(lit_scene, scatter_colour, alpha);
+            body = surface_medium_radiance(lit_scene, to_view, depth_path.path_length);
+        } else if depth_path.has_background && depth_path.path_length > LUMINANCE_EPSILON {
+            body = surface_medium_radiance(vec3(0.0), to_view, depth_path.path_length);
         }
-        // A clear depth prepass has no transmissive background. Preserve the
-        // deep-water body there. Once all channels transmit <= 2^-10, use the same
-        // scatter endpoint without a refracted depth or opaque-colour sample.
     }
     return TransmissionState(body, vec4(0.0), false);
 }

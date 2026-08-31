@@ -210,7 +210,7 @@ pub struct BodyParams {
     /// profile; w: optics enable flag. Fresh-water bodies author low
     /// extinction so the bed shows through.
     optics_a: Vec4,
-    /// x: scatter-endpoint scale (deep-pool darkness); yzw reserved.
+    /// x: scatter-scale for particle σs; yzw reserved.
     optics_b: Vec4,
 }
 
@@ -260,13 +260,12 @@ impl BodyParams {
 }
 
 /// Per-body water optics: low extinction keeps shallow fresh water clear
-/// over its bed; the scatter scale darkens the deep endpoint so pools read
-/// by depth instead of ocean turquoise.
+/// over visible beds; scatter scale is particle load for the shared medium.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BodyOptics {
     /// Per-channel Beer-Lambert extinction in inverse metres.
     pub extinction: Vec3,
-    /// Multiplier on the volume-scatter endpoint.
+    /// Multiplier on particle scatter for the shared water medium.
     pub scatter_scale: f32,
     /// Surface roughness driving the Fresnel response; negative inherits
     /// the ocean value.
@@ -278,12 +277,12 @@ pub struct BodyOptics {
 /// `SurfaceParams` in cascade/common.wgsl field for field.
 #[derive(ShaderType, Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceParams {
-    /// Deep-water body colour (rgb) with reserved alpha.
+    /// Deep-water paint (rgb). Unused by the shared medium.
     pub deep_color: Vec4,
-    /// Grazing-angle reflection tint (rgb).
+    /// Grazing-angle paint (rgb). Unused by the shared medium.
     pub grazing_color: Vec4,
-    /// Coastal scatter colour; alpha is the metric depth at which it
-    /// reaches deep water.
+    /// Coastal scatter colour; alpha is the metric depth at which
+    /// far-tier shading treats the water as deep.
     pub shallow_color: Vec4,
     /// x: water F0, y: Godot Fresnel power, z: specular strength, w reserved.
     pub fresnel: Vec4,
@@ -315,7 +314,8 @@ pub struct SurfaceParams {
     /// xy: world-space current in m/s; zw reserved. The shader advects wave
     /// sampling by `flow * globals.time`.
     pub advection: Vec4,
-    /// x: far-tier transition start in metres, y: end; zw reserved.
+    /// x: far-tier transition start in metres, y: end;
+    /// z: volume in-scatter scale, w: Henyey-Greenstein `g`.
     pub far_tier: Vec4,
     /// Strength, metres per cell, metres per second, and maximum depth in metres.
     pub caustics: Vec4,
@@ -365,7 +365,7 @@ impl Default for SurfaceParams {
             foam: Vec4::new(10.0, 0.4, 1.35, 1.0),
             // No current by default; the accepted goldens stay world-anchored.
             advection: Vec4::ZERO,
-            far_tier: Vec4::new(320.0, 512.0, 0.0, 0.0),
+            far_tier: Vec4::new(320.0, 512.0, 1.0, 0.8),
             caustics: Vec4::ZERO,
         }
     }
@@ -574,7 +574,13 @@ pub fn update(
         material.surface.advection = Vec4::new(waves.flow.x, waves.flow.y, 0.0, 0.0);
         let far_start = settings.far_tier_start.max(0.0);
         let far_end = settings.far_tier_end.max(far_start + 1.0);
-        material.surface.far_tier = Vec4::new(far_start, far_end, 0.0, 0.0);
+        let volume = settings.volume.unwrap_or_default();
+        material.surface.far_tier = Vec4::new(
+            far_start,
+            far_end,
+            volume.inscatter.max(0.0),
+            volume.scattering_asymmetry,
+        );
         material.surface.sea_floor.w = caustic_sun.0.clamp(0.0, 1.0);
         material.surface.caustics = settings.caustics.map_or(Vec4::ZERO, |caustics| {
             Vec4::new(

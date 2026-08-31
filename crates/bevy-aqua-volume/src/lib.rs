@@ -8,6 +8,7 @@
 //! plus scatter. Particle scatter is a weak, slightly blue coefficient times
 //! [`WaterOptics::scatter_scale`], clamped below `σt`, so red dies instead of
 //! glowing. In-scatter colour is the downwelling light, not the surface paints.
+//! The cascade surface body uses the same `aqua::medium` integral.
 //!
 //! Ambient downwelling is vertical. Each directional light is refracted at
 //! the surface (Snell, Fresnel) and then attenuated along `depth / L.y`, so

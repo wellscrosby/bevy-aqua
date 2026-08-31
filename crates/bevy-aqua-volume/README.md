@@ -8,6 +8,9 @@ segment. Particle scatter is a weak, slightly blue coefficient times
 scattered back. Haze colour is the sun and sky after downwelling, not the
 cascade body paints.
 
+The same `aqua::medium` integral shades the cascade surface body from above,
+starting at the mesh with `d0 = 0`. This pass still only runs underwater.
+
 Ambient downwelling is vertical. Directional lights are refracted at the
 surface, then fall off along `depth / L.y`, so sun elevation changes how
 fast the water goes dark. Body in-scatter is that sun fill; looking toward

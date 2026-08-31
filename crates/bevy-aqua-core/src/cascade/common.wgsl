@@ -112,6 +112,7 @@ struct SurfaceParams {
     foam: vec4<f32>,
     advection: vec4<f32>,
     /// x/y: configurable far-tier start/end distances in metres.
+    /// z: volume in-scatter scale, w: Henyey-Greenstein `g`.
     far_tier: vec4<f32>,
     /// Strength, metres per cell, metres per second, and maximum depth in metres.
     caustics: vec4<f32>,
@@ -127,7 +128,7 @@ struct BodyParams {
     aabb_size: vec4<f32>,
     /// rgb: per-channel Beer-Lambert extinction in 1/m; w: optics enable.
     optics_a: vec4<f32>,
-    /// x: scatter-endpoint scale (deep-pool darkness); yzw reserved.
+    /// x: scatter-scale for particle σs; yzw reserved.
     optics_b: vec4<f32>,
 }
 
@@ -268,8 +269,7 @@ var<private> invocation_optics_a: vec4<f32> = vec4(0.0);
 var<private> invocation_optics_b: vec4<f32> = vec4(0.0);
 
 /// Per-body water optics: extinction replaces the ocean Beer-Lambert
-/// coefficients and the scatter endpoint scales down, so shallow fresh water
-/// reads clear over its bed instead of ocean-teal.
+/// coefficients and scatter_scale is particle load for the shared medium.
 var<private> body_extinction: vec3<f32> = vec3(0.0);
 var<private> body_scatter_scale: f32 = 1.0;
 
@@ -318,7 +318,7 @@ fn set_fragment_river(sample: vec4<f32>) {
 }
 
 /// Fragment entry: records the effective Beer-Lambert extinction and the
-/// scatter-endpoint scale after fresh-water optics override.
+/// particle-scatter scale after fresh-water optics override.
 fn set_body_optics(extinction: vec3<f32>, scatter_scale: f32) {
     body_extinction = extinction;
     body_scatter_scale = scatter_scale;
