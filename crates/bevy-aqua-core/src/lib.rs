@@ -129,8 +129,8 @@ impl WaterOptics {
     /// Accepted dark blue ocean profile: red-heavy extinction removes red
     /// first while the blue-heavy scatter keeps an ocean-blue body.
     pub const DEEP_OCEAN: Self = Self {
-        extinction: Vec3::new(0.90, 0.45, 0.20),
-        scatter_scale: 0.01,
+        extinction: Vec3::new(0.3, 0.1, 0.05),
+        scatter_scale: 0.05,
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.088_506_84, 0.497, 0.456_150_74),
