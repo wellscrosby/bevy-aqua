@@ -552,6 +552,7 @@ fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
     set_body_optics(
         select(surface.fog_density.rgb, params.optics_a.rgb, body_optics),
         select(1.0, params.optics_b.x, body_optics),
+        select(surface.far_tier.w, params.optics_b.w, body_optics),
     );
     // Discharge reads as roughness: faster narrows break up more, banks and
     // pools stay glassy. Bank fade eases the multiplier to zero at the edge.

@@ -6,13 +6,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- A focused native/WebGPU `debug_views` example that automatically cycles
-  through every `AquaDebug` diagnostic mode.
-- Optional underwater volume pass (`AquaSettings::volume`): closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, Henyey-Greenstein), gated off by default. Particle scatter is a weak blue-tilted coefficient times `scatter_scale`, not a copy of extinction.
+- A focused native/WebGPU debug_views example that automatically cycles
+  through every AquaDebug diagnostic mode.
+- Underwater volume pass: closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, Henyey-Greenstein) when the camera is below the local surface. Particle scatter is a weak blue-tilted coefficient times `scatter_scale`, not a copy of extinction. Henyey-Greenstein `g` is `WaterOptics::scattering_asymmetry`.
 
 ### Changed
 
 - Cascade surface body shading uses the same `aqua::medium` integral as the underwater pass, instead of mixing an authored scatter endpoint with Beer-Lambert fog. Refraction, Fresnel, foam, and crest SSS stay on the mesh.
+- `WaterOptics` now includes Henyey-Greenstein `scattering_asymmetry`. `WaterVolume` and `AquaSettings::volume` are removed; the underwater pass is no longer optional, and the old `inscatter` gain is gone.
+- `WaterOptics` no longer carries unused Crest body paints (`deep_color`, `grazing_color`, `shallow_color`). Far-tier water is treated as deep below 7 m.
 
 ## [0.1.3] - 2026-08-30
 

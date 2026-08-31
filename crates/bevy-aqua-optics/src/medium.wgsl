@@ -81,7 +81,6 @@ fn medium_radiance(
     d0: f32,
     sigma_t: vec3<f32>,
     scatter_scale: f32,
-    inscatter_scale: f32,
     g: f32,
     sky_fallback: vec3<f32>,
 ) -> vec3<f32> {
@@ -94,7 +93,7 @@ fn medium_radiance(
         PARTICLE_SCATTER * max(scatter_scale, 0.0) * SCATTER_SPECTRUM,
     );
     let exposure = view.exposure;
-    let weighted = sigma_s * inscatter_scale;
+    let weighted = sigma_s;
 
     var sun_surface = vec3(0.0);
     var inscatter = vec3<f32>(0.0);

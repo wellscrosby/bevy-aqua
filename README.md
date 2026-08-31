@@ -93,7 +93,10 @@ data; set them before the plugin starts.
 
 `AquaSettings` selects a `WaterOptics` preset and a `detail_strength` in
 `0..=2`. `WaterOptics::DEEP_OCEAN` is the default. Coastal, tropical, and
-clear-fresh presets are also provided. `far_tier_start` and `far_tier_end`
+clear-fresh presets are also provided. Extinction, particle scatter, and
+Henyey-Greenstein `scattering_asymmetry` live on that optics profile. When
+the camera is below the local surface, a fullscreen volume pass applies the
+same medium. `far_tier_start` and `far_tier_end`
 bound the reduced-cost shading transition in metres. Far shading keeps sun
 and reflections while omitting depth, foam, and sampled subsurface detail.
 `reflections` selects the default planar mirror views or the byte-compatible cubemap-only path. Mark terrain or a

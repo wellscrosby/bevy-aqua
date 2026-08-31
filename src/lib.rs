@@ -2,7 +2,7 @@
 //!
 //! Aqua provides concentric ocean geometry, analytic and FFT displacement,
 //! depth-aware transmission, reflections, foam, shallow-water attenuation,
-//! and an optional underwater volume pass.
+//! and an underwater volume pass.
 //! One world unit is one metre.
 //!
 //! # Setup
@@ -30,7 +30,7 @@
 //! - bounded-water authoring: [`WaterBody`], [`WaterShape`], [`WaterOptics`],
 //!   [`RiverPath`], [`RiverPoint`], and Bevy [`Transform`];
 //! - water and rendering choices: [`SeaState`], [`WaveModel`],
-//!   [`ReflectionMode`], [`Caustics`], and [`WaterVolume`];
+//!   [`ReflectionMode`], and [`Caustics`];
 //! - optional feature APIs documented at the root, including `WaveQuery`,
 //!   `WaveSurface`, `ReflectedInWater`, `SprayQuality`, and `SpraySettings`.
 //!
@@ -48,7 +48,7 @@ use bevy::{camera::visibility::VisibilitySystems, prelude::*};
 pub use bevy_aqua_core::{
     AquaDebug, AquaSettings, BedHeightMap, Caustics, CausticsSunVisibility, FlowSample, Ocean,
     OceanWaves, ReflectionMode, RiverPath, RiverPoint, RiverSample, SeaState, WaterBody,
-    WaterOptics, WaterShape, WaterVolume, WaveModel,
+    WaterOptics, WaterShape, WaveModel,
 };
 use bevy_aqua_core::{
     CascadeDataReady, CascadeMaterial, CascadeMaterialsUpdated, Data, OceanView, ViewDetail,

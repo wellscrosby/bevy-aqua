@@ -111,7 +111,6 @@ fn fragment(
             d0,
             volume.extinction.rgb,
             volume.extinction.w,
-            volume.environment.y,
             volume.environment.z,
             vec3(volume.environment.x),
         ),

@@ -246,13 +246,9 @@ fn prepare_pipelines(
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<VolumePipeline>>,
     pipeline: Res<VolumePipeline>,
-    volume: Res<ExtractedVolume>,
     view_key_cache: Res<ViewKeyCache>,
     cameras: Query<(Entity, &ExtractedView, &Msaa), With<OceanView>>,
 ) {
-    if !volume.enabled {
-        return;
-    }
     for (entity, view, msaa) in &cameras {
         let Some(mesh_pipeline_key) = view_key_cache.get(&view.retained_view_entity) else {
             continue;
@@ -272,13 +268,7 @@ fn prepare_pipelines(
     }
 }
 
-fn prepare_depth_usages(
-    volume: Res<ExtractedVolume>,
-    mut cameras: Query<&mut Camera3d, With<OceanView>>,
-) {
-    if !volume.enabled {
-        return;
-    }
+fn prepare_depth_usages(mut cameras: Query<&mut Camera3d, With<OceanView>>) {
     for mut camera in &mut cameras {
         camera.depth_texture_usages.0 |= TextureUsages::TEXTURE_BINDING.bits();
     }
@@ -290,8 +280,8 @@ fn volume_uniform(volume: &ExtractedVolume) -> VolumeUniform {
         extinction: optics.extinction.extend(optics.scatter_scale.max(0.0)),
         environment: Vec4::new(
             volume.environment_intensity,
-            volume.volume.inscatter.max(0.0),
-            volume.volume.scattering_asymmetry,
+            0.0,
+            volume.optics.scattering_asymmetry,
             if volume.sample_waves { 1.0 } else { 0.0 },
         ),
         sea: Vec4::new(volume.surface_level, 0.0, 0.0, 0.0),

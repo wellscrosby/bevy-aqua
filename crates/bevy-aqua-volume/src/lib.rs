@@ -1,20 +1,20 @@
 //! Underwater volume composite for Aqua.
 //!
-//! When [`AquaSettings::volume`] is set and the camera sits below the local
-//! water surface, a fullscreen Core3d pass applies RGB Beer-Lambert
-//! transmittance and closed-form in-scatter along the underwater segment.
-//! Empty far-plane pixels integrate a bounded path through the water instead
-//! of reconstructing the far clip as the path end. Extinction is absorption
-//! plus scatter. Particle scatter is a weak, slightly blue coefficient times
-//! [`WaterOptics::scatter_scale`], clamped below `σt`, so red dies instead of
-//! glowing. In-scatter colour is the downwelling light, not the surface paints.
-//! The cascade surface body uses the same `aqua::medium` integral.
+//! When the camera sits below the local water surface, a fullscreen Core3d
+//! pass applies RGB Beer-Lambert transmittance and closed-form in-scatter
+//! along the underwater segment. Empty far-plane pixels integrate a bounded
+//! path through the water instead of reconstructing the far clip as the path
+//! end. Extinction is absorption plus scatter. Particle scatter is a weak,
+//! slightly blue coefficient times [`WaterOptics::scatter_scale`], clamped
+//! below `σt`, so red dies instead of glowing. In-scatter colour is the
+//! downwelling light, not the surface paints. The cascade surface body uses
+//! the same `aqua::medium` integral.
 //!
 //! Ambient downwelling is vertical. Each directional light is refracted at
 //! the surface (Snell, Fresnel) and then attenuated along `depth / L.y`, so
 //! a lower sun dies faster with depth. Body in-scatter is that sun fill;
-//! Henyey-Greenstein adds a brighter lobe toward the sun.
-//! [`WaterVolume::inscatter`] scales the haze. `VolumetricLight` is not used.
+//! Henyey-Greenstein uses [`WaterOptics::scattering_asymmetry`].
+//! `VolumetricLight` is not used.
 //!
 //! The cascade mesh is unchanged. The medium is the mean water plane. A
 //! single cascade sample at the camera keeps a crest underwater and rejects
@@ -30,7 +30,7 @@ use bevy::{
 };
 use bevy_aqua_core::{
     AquaSettings, Ocean, OceanView, ResolvedWaterBodies, ResolvedWaterBody, WaterBodiesResolved,
-    WaterOptics, WaterVolume,
+    WaterOptics,
 };
 
 mod render;
@@ -59,24 +59,20 @@ impl Plugin for AquaVolumePlugin {
 /// GPU payload extracted each frame. Inactive frames skip the composite.
 #[derive(Resource, Clone, ExtractResource, Debug)]
 struct ExtractedVolume {
-    enabled: bool,
     active: bool,
     surface_level: f32,
     sample_waves: bool,
     optics: WaterOptics,
-    volume: WaterVolume,
     environment_intensity: f32,
 }
 
 impl Default for ExtractedVolume {
     fn default() -> Self {
         Self {
-            enabled: false,
             active: false,
             surface_level: 0.0,
             sample_waves: false,
             optics: WaterOptics::DEEP_OCEAN,
-            volume: WaterVolume::default(),
             environment_intensity: 0.0,
         }
     }
@@ -125,16 +121,8 @@ fn detect_underwater(
     bodies: Res<ResolvedWaterBodies>,
     mut volume: ResMut<ExtractedVolume>,
 ) {
-    let Some(volume_settings) = settings.volume else {
-        *volume = ExtractedVolume::default();
-        return;
-    };
     let Some((transform, exposure, environment)) = cameras.iter().next() else {
-        *volume = ExtractedVolume {
-            enabled: true,
-            volume: volume_settings,
-            ..Default::default()
-        };
+        *volume = ExtractedVolume::default();
         return;
     };
     let Some((surface_level, optics, sample_waves)) = sample_medium(
@@ -143,11 +131,7 @@ fn detect_underwater(
         &settings,
         &bodies.0,
     ) else {
-        *volume = ExtractedVolume {
-            enabled: true,
-            volume: volume_settings,
-            ..Default::default()
-        };
+        *volume = ExtractedVolume::default();
         return;
     };
 
@@ -158,12 +142,10 @@ fn detect_underwater(
         .unwrap_or(1.0);
 
     *volume = ExtractedVolume {
-        enabled: true,
         active: true,
         surface_level,
         sample_waves,
         optics,
-        volume: volume_settings,
         environment_intensity,
     };
 }

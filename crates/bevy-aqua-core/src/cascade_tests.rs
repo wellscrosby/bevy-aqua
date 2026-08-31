@@ -31,6 +31,7 @@ fn body_params_abi_is_six_full_vec4s() {
     let optics = crate::cascade::BodyOptics {
         extinction: Vec3::new(0.28, 0.16, 0.12),
         scatter_scale: 0.18,
+        scattering_asymmetry: 0.8,
         sun_roughness: 0.1,
     };
     let mut bytes = Vec::new();
@@ -56,7 +57,7 @@ fn body_params_abi_is_six_full_vec4s() {
             -70.0, -5.0, 0.0, 0.0, //
             60.0, 50.0, 0.0, 0.0, //
             0.28, 0.16, 0.12, 1.0, //
-            0.18, 0.1, 1.0, 0.0,
+            0.18, 0.1, 1.0, 0.8,
         ]
     );
 }

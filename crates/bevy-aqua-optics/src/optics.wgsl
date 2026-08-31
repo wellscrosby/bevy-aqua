@@ -8,7 +8,7 @@
     mesh_view_bindings::{globals, lights, view},
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
-#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, sample_planar_reflection, screen_xz_footprint, surface}
+#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, invocation_scattering_asymmetry, sample_planar_reflection, screen_xz_footprint, surface}
 #import aqua::medium::{PATH_LENGTH_MAX, medium_radiance}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
@@ -20,6 +20,8 @@
 // 0.0977% of scene/scatter contrast before Fresnel. At Crest's shipped minimum
 // extinction (0.3 / m), the gate begins at 23.10 m.
 const TRANSMISSION_OPAQUE_OPTICAL_DEPTH: f32 = 6.931471806;
+// Far-tier shading only takes over once the bed is this deep, in metres.
+const FAR_TIER_DEEP_METRES: f32 = 7.0;
 
 // Dupuy et al. 2013 LEADR-style slope filtering. A pixel cannot resolve waves
 // shorter than twice its projected world footprint. Integrate each shipped
@@ -84,7 +86,7 @@ fn unresolved_wave_roughness(
 }
 
 fn deep_water_weight(water_depth: f32) -> f32 {
-    return smoothstep(0.35, surface.shallow_color.a, water_depth);
+    return smoothstep(0.35, FAR_TIER_DEEP_METRES, water_depth);
 }
 
 fn surface_medium_radiance(scene: vec3<f32>, to_view: vec3<f32>, t_end: f32) -> vec3<f32> {
@@ -95,8 +97,7 @@ fn surface_medium_radiance(scene: vec3<f32>, to_view: vec3<f32>, t_end: f32) -> 
         0.0,
         invocation_extinction(),
         invocation_scatter_scale(),
-        surface.far_tier.z,
-        surface.far_tier.w,
+        invocation_scattering_asymmetry(),
         vec3(1.0),
     );
 }

@@ -210,7 +210,8 @@ pub struct BodyParams {
     /// profile; w: optics enable flag. Fresh-water bodies author low
     /// extinction so the bed shows through.
     optics_a: Vec4,
-    /// x: scatter-scale for particle σs; yzw reserved.
+    /// x: scatter-scale for particle σs; y: sun roughness; z: plain Schlick
+    /// flag; w: Henyey-Greenstein `g`.
     optics_b: Vec4,
 }
 
@@ -238,15 +239,16 @@ impl BodyParams {
     ) -> Self {
         // Body Fresnel is plain Schlick (no roughness damping); the ocean
         // preset keeps its damped curve.
-        let (extinction, scale, roughness, schlick, enabled) = match optics {
+        let (extinction, scale, roughness, schlick, g, enabled) = match optics {
             Some(optics) => (
                 optics.extinction,
                 optics.scatter_scale,
                 optics.sun_roughness,
                 1.0,
+                optics.scattering_asymmetry,
                 1.0,
             ),
-            None => (Vec3::ZERO, 1.0, -1.0, 0.0, 0.0),
+            None => (Vec3::ZERO, 1.0, -1.0, 0.0, 0.0, 0.0),
         };
         Self {
             flags: Vec4::new(1.0, if has_flow { 1.0 } else { 0.0 }, 0.0, 0.0),
@@ -254,7 +256,7 @@ impl BodyParams {
             aabb_min: Vec4::new(aabb_min.x, aabb_min.y, 0.0, 0.0),
             aabb_size: Vec4::new(aabb_size.x, aabb_size.y, 0.0, 0.0),
             optics_a: Vec4::new(extinction.x, extinction.y, extinction.z, enabled),
-            optics_b: Vec4::new(scale, roughness, schlick, 0.0),
+            optics_b: Vec4::new(scale, roughness, schlick, g),
         }
     }
 }
@@ -267,23 +269,18 @@ pub struct BodyOptics {
     pub extinction: Vec3,
     /// Multiplier on particle scatter for the shared water medium.
     pub scatter_scale: f32,
+    /// Henyey-Greenstein `g` for the shared water medium.
+    pub scattering_asymmetry: f32,
     /// Surface roughness driving the Fresnel response; negative inherits
     /// the ocean value.
     pub sun_roughness: f32,
 }
 
-/// Surface shading parameters uploaded with the material: colours,
-/// Fresnel/reflection/sun controls, debug routing, and advection. Mirrors
-/// `SurfaceParams` in cascade/common.wgsl field for field.
+/// Surface shading parameters uploaded with the material: Fresnel,
+/// reflection, sun, debug routing, and advection. Mirrors `SurfaceParams`
+/// in cascade/common.wgsl field for field.
 #[derive(ShaderType, Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceParams {
-    /// Deep-water paint (rgb). Unused by the shared medium.
-    pub deep_color: Vec4,
-    /// Grazing-angle paint (rgb). Unused by the shared medium.
-    pub grazing_color: Vec4,
-    /// Coastal scatter colour; alpha is the metric depth at which
-    /// far-tier shading treats the water as deep.
-    pub shallow_color: Vec4,
     /// x: water F0, y: Godot Fresnel power, z: specular strength, w reserved.
     pub fresnel: Vec4,
     /// x: FFT flag, y: micro-roughness strength, z: daylight lux,
@@ -315,19 +312,15 @@ pub struct SurfaceParams {
     /// sampling by `flow * globals.time`.
     pub advection: Vec4,
     /// x: far-tier transition start in metres, y: end;
-    /// z: volume in-scatter scale, w: Henyey-Greenstein `g`.
+    /// z reserved; w: Henyey-Greenstein `g`.
     pub far_tier: Vec4,
     /// Strength, metres per cell, metres per second, and maximum depth in metres.
     pub caustics: Vec4,
 }
 
 impl SurfaceParams {
-    /// Applies one optics preset's colours and extinction to the uniform.
+    /// Applies one optics preset's extinction and crest SSS tint to the uniform.
     pub fn apply_optics(&mut self, optics: &WaterOptics) {
-        self.deep_color = optics.deep_color.extend(1.0);
-        self.grazing_color = optics.grazing_color.extend(1.0);
-        // Alpha is the metric depth at which coastal scatter reaches deep water.
-        self.shallow_color = optics.shallow_color.extend(7.0);
         self.fog_density = optics.extinction.extend(0.0);
         self.sss_tint = optics.sss_tint.extend(0.0);
     }
@@ -336,10 +329,6 @@ impl SurfaceParams {
 impl Default for SurfaceParams {
     fn default() -> Self {
         Self {
-            // Accepted Crest shader-property profile; see the Ocean.mat divergence above.
-            deep_color: Vec4::new(0.0, 0.002_695_407_3, 0.169_811_31, 1.0),
-            grazing_color: Vec4::new(0.0, 0.003_921_569, 0.168_627_4, 1.0),
-            shallow_color: Vec4::new(0.012, 0.13, 0.115, 7.0),
             // Water F0, Godot Fresnel power, shipped Crest specular strength, reserved.
             fresnel: Vec4::new(0.020_373_19, 5.0, 1.0, 0.0),
             // FFT flag, micro-roughness strength, daylight lux, maximum roughness.
@@ -365,7 +354,7 @@ impl Default for SurfaceParams {
             foam: Vec4::new(10.0, 0.4, 1.35, 1.0),
             // No current by default; the accepted goldens stay world-anchored.
             advection: Vec4::ZERO,
-            far_tier: Vec4::new(320.0, 512.0, 1.0, 0.8),
+            far_tier: Vec4::new(320.0, 512.0, 0.0, 0.8),
             caustics: Vec4::ZERO,
         }
     }
@@ -574,12 +563,11 @@ pub fn update(
         material.surface.advection = Vec4::new(waves.flow.x, waves.flow.y, 0.0, 0.0);
         let far_start = settings.far_tier_start.max(0.0);
         let far_end = settings.far_tier_end.max(far_start + 1.0);
-        let volume = settings.volume.unwrap_or_default();
         material.surface.far_tier = Vec4::new(
             far_start,
             far_end,
-            volume.inscatter.max(0.0),
-            volume.scattering_asymmetry,
+            0.0,
+            settings.water_optics.scattering_asymmetry,
         );
         material.surface.sea_floor.w = caustic_sun.0.clamp(0.0, 1.0);
         material.surface.caustics = settings.caustics.map_or(Vec4::ZERO, |caustics| {
