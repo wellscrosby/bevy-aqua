@@ -9,6 +9,11 @@ on:
         description: Exact workspace version to publish, without a v prefix
         required: true
         type: string
+      ref:
+        description: Git tag or commit to publish
+        required: true
+        default: main
+        type: string
 
 concurrency:
   group: crates-io-publish
@@ -24,6 +29,8 @@ jobs:
     environment: crates-io
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
