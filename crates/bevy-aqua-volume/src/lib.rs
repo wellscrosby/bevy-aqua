@@ -5,16 +5,17 @@
 //! along the underwater segment. Empty far-plane pixels integrate a bounded
 //! path through the water instead of reconstructing the far clip as the path
 //! end. Extinction is absorption plus scatter. Particle scatter is a weak,
-//! slightly blue coefficient times [`WaterOptics::scatter_scale`], clamped
-//! below `σt`, so red dies instead of glowing. In-scatter colour is the
-//! downwelling light, not the surface paints. The cascade surface converts
+//! slightly blue coefficient times [`WaterOptics::scatter_scale`], plus
+//! molecular Rayleigh, clamped below `σt`, so red dies instead of glowing.
+//! In-scatter colour is the downwelling light after a normalized mix of
+//! particle Henyey-Greenstein and Rayleigh. The cascade surface converts
 //! the same integral to air as water-leaving radiance along the camera ray
 //! that sampled transmission (in-water radiance / n²).
 //!
 //! Ambient downwelling is vertical. Each directional light is refracted at
 //! the surface (Snell, Fresnel) and then attenuated along `depth / L.y`, so
-//! a lower sun dies faster with depth. Body in-scatter is that sun fill;
-//! Henyey-Greenstein uses [`WaterOptics::scattering_asymmetry`].
+//! a lower sun dies faster with depth. Looking toward the sun is brighter
+//! via Henyey-Greenstein using [`WaterOptics::scattering_asymmetry`].
 //! `VolumetricLight` is not used.
 //!
 //! The cascade mesh is unchanged. The medium is the mean water plane. A

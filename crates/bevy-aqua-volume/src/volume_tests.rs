@@ -162,19 +162,61 @@ fn lower_sun_dies_faster_with_depth() {
     assert!(low < overhead);
 }
 
+const RAYLEIGH: Vec3 = Vec3::new(0.00095, 0.00193, 0.00456);
+
 fn particle_scatter(scatter_scale: f32) -> Vec3 {
     Vec3::new(0.85, 1.0, 1.22) * 0.02 * scatter_scale.max(0.0)
+}
+
+fn total_scatter(scatter_scale: f32, extinction: Vec3) -> Vec3 {
+    (particle_scatter(scatter_scale) + RAYLEIGH).min(extinction)
+}
+
+fn henyey_greenstein(cos_theta: f32, g: f32) -> f32 {
+    let denom = 1.0 + g * g - 2.0 * g * cos_theta;
+    std::f32::consts::FRAC_1_PI * 0.25 * (1.0 - g * g) / (denom * denom.sqrt())
+}
+
+fn phase_rayleigh(cos_theta: f32) -> f32 {
+    3.0 / (16.0 * std::f32::consts::PI) * (1.0 + cos_theta * cos_theta)
+}
+
+fn mixed_phase(cos_theta: f32, scatter_scale: f32, g: f32) -> Vec3 {
+    let sigma_p = particle_scatter(scatter_scale);
+    let denom = (sigma_p + RAYLEIGH).max(Vec3::splat(1e-8));
+    (sigma_p * henyey_greenstein(cos_theta, g) + RAYLEIGH * phase_rayleigh(cos_theta)) / denom
 }
 
 #[test]
 fn red_extinction_is_mostly_absorption() {
     let optics = WaterOptics::DEEP_OCEAN;
-    let sigma_s = particle_scatter(optics.scatter_scale).min(optics.extinction);
+    let sigma_s = total_scatter(optics.scatter_scale, optics.extinction);
     let omega = sigma_s / optics.extinction;
     assert!(sigma_s.x < sigma_s.y);
     assert!(sigma_s.y < sigma_s.z);
     assert!(omega.x < 0.05);
     assert!(omega.x < omega.y);
+}
+
+#[test]
+fn backscatter_is_molecular_not_an_isotropic_gain() {
+    let optics = WaterOptics::DEEP_OCEAN;
+    let back = mixed_phase(-1.0, optics.scatter_scale, optics.scattering_asymmetry);
+    let hg_back = henyey_greenstein(-1.0, optics.scattering_asymmetry);
+    assert!(back.z > hg_back);
+    assert!(back.z < 0.15);
+    assert!(back.max_element() < 0.5);
+}
+
+#[test]
+fn forward_scatter_is_still_henyey_greenstein() {
+    let optics = WaterOptics::DEEP_OCEAN;
+    let forward = mixed_phase(1.0, optics.scatter_scale, optics.scattering_asymmetry);
+    let back = mixed_phase(-1.0, optics.scatter_scale, optics.scattering_asymmetry);
+    let hg_forward = henyey_greenstein(1.0, optics.scattering_asymmetry);
+    assert!(forward.y > 1.0);
+    assert!(forward.y > back.y * 10.0);
+    assert!((forward.y - hg_forward).abs() < hg_forward * 0.5);
 }
 
 #[test]

@@ -1,29 +1,44 @@
 // Closed-form water medium: RGB Beer-Lambert transmittance and in-scatter
-// from directional downwelling. The underwater pass evaluates this in water.
-// The cascade surface converts the same integral to air as water-leaving
-// radiance along the camera ray that sampled transmission (in-water
-// radiance / n²). That ray is not Snell-bent: the opaque buffer is not.
+// from directional downwelling. Scatter is particle Henyey-Greenstein plus
+// molecular Rayleigh, mixed per channel so the phase integrates to 1 sr⁻¹.
+// The underwater pass evaluates this in water. The cascade surface converts
+// the same integral to air as water-leaving radiance along the camera ray
+// that sampled transmission (in-water radiance / n²). That ray is not
+// Snell-bent: the opaque buffer is not.
 
 #define_import_path aqua::medium
 
 #import bevy_pbr::mesh_view_bindings::{lights, view}
 
 const FRAC_4_PI: f32 = 0.07957747154594767;
+const FRAC_3_16_PI: f32 = 0.05968310365946022;
 const PATH_LENGTH_MAX: f32 = 256.0;
 const SKY_FRACTION: f32 = 0.4;
-const SUN_BODY: f32 = 0.5;
 const N_WATER: f32 = 1.333;
 const MIN_L_Y: f32 = 0.02;
 const KAPPA_EPS: f32 = 1e-5;
 const OPTICAL_CLAMP: f32 = 80.0;
-// Particle scatter at 550 nm for scatter_scale = 1, in 1/m. Red-heavy σt is
-// absorption; this is the particle load, weakly blue (~λ^{-1}).
+const SCATTER_EPS: f32 = 1e-8;
+// Particle scatter at 550 nm for scatter_scale = 1, in 1/m. Weakly blue (~λ^{-1}).
 const PARTICLE_SCATTER: f32 = 0.02;
 const SCATTER_SPECTRUM: vec3<f32> = vec3(0.85, 1.0, 1.22);
+// Smith and Baker 1981 molecular scatter at 650/550/450 nm, in 1/m.
+const RAYLEIGH: vec3<f32> = vec3(0.00095, 0.00193, 0.00456);
 
 fn henyey_greenstein(l_dot_rd: f32, g: f32) -> f32 {
     let denom = 1.0 + g * g - 2.0 * g * l_dot_rd;
     return FRAC_4_PI * (1.0 - g * g) / (denom * sqrt(denom));
+}
+
+fn phase_rayleigh(cos_theta: f32) -> f32 {
+    return FRAC_3_16_PI * (1.0 + cos_theta * cos_theta);
+}
+
+fn mixed_phase(cos_theta: f32, sigma_p: vec3<f32>, g: f32) -> vec3<f32> {
+    let denom = max(sigma_p + RAYLEIGH, vec3(SCATTER_EPS));
+    return (sigma_p * henyey_greenstein(cos_theta, g)
+        + RAYLEIGH * phase_rayleigh(cos_theta))
+        / denom;
 }
 
 fn fresnel_air_to_water(cos_air: f32) -> f32 {
@@ -114,12 +129,9 @@ fn medium_radiance(
         return scene;
     }
 
-    let sigma_s = min(
-        sigma_t,
-        PARTICLE_SCATTER * max(scatter_scale, 0.0) * SCATTER_SPECTRUM,
-    );
+    let sigma_p = PARTICLE_SCATTER * max(scatter_scale, 0.0) * SCATTER_SPECTRUM;
+    let sigma_s = min(sigma_t, sigma_p + RAYLEIGH);
     let exposure = view.exposure;
-    let weighted = sigma_s;
 
     var sun_surface = vec3(0.0);
     var inscatter = vec3<f32>(0.0);
@@ -134,14 +146,14 @@ fn medium_radiance(
         sun_surface += e_air * l_air.y;
         let l_water = refract_air_to_water(l_air);
         let e_water = e_air * (1.0 - fresnel_air_to_water(l_air.y));
-        let phase = henyey_greenstein(dot(l_water, rd), g);
-        inscatter += weighted * downwelling_integral(
+        let phase = mixed_phase(dot(l_water, rd), sigma_p, g);
+        inscatter += sigma_s * downwelling_integral(
             sigma_t,
             t_end,
             rd.y,
             l_water.y,
             d0,
-            e_water * (SUN_BODY + phase),
+            e_water * phase,
         );
     }
 
@@ -150,13 +162,13 @@ fn medium_radiance(
         sun_surface * SKY_FRACTION,
         any(sun_surface > vec3(1e-6)),
     );
-    inscatter += weighted * downwelling_integral(
+    inscatter += sigma_s * downwelling_integral(
         sigma_t,
         t_end,
         rd.y,
         1.0,
         d0,
-        sky,
+        sky * mixed_phase(rd.y, sigma_p, g),
     );
 
     let transmittance = exp(-sigma_t * t_end);
