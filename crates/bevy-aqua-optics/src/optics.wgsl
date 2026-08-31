@@ -9,11 +9,11 @@
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
 #import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, invocation_scattering_asymmetry, sample_planar_reflection, screen_xz_footprint, surface}
-#import aqua::medium::{PATH_LENGTH_MAX, medium_radiance}
+#import aqua::medium::{PATH_LENGTH_MAX, water_leaving_radiance}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
-#import aqua::light::incident::{GODOT_NORMAL_FADE_RATE, GODOT_NORMAL_MINIMUM_STRENGTH, GODOT_SSS_MODIFIER, GODOT_WATER_ALBEDO, LUMINANCE_WEIGHTS, filtered_primary_light_color, ggx_distribution, safe_normalize, sample_diffuse_environment, sample_environment, smith_masking_shadowing, strongest_incident_directional_light}
+#import aqua::light::incident::{GODOT_NORMAL_FADE_RATE, GODOT_NORMAL_MINIMUM_STRENGTH, GODOT_SSS_MODIFIER, GODOT_WATER_ALBEDO, LUMINANCE_WEIGHTS, filtered_primary_light_color, ggx_distribution, safe_normalize, sample_environment, smith_masking_shadowing, strongest_incident_directional_light}
 #import bevy_aqua_core::material::{CameraDepthDebug, CameraDepthPath, FoamState, MediumState, NearSurface, PrimaryLightState, SurfaceVertexOutput, TransmissionState}
 
 // A 2^-10 residual in the least-attenuated channel bounds body error to
@@ -90,11 +90,10 @@ fn deep_water_weight(water_depth: f32) -> f32 {
 }
 
 fn surface_medium_radiance(scene: vec3<f32>, to_view: vec3<f32>, t_end: f32) -> vec3<f32> {
-    return medium_radiance(
+    return water_leaving_radiance(
         scene,
-        -to_view,
+        to_view,
         t_end,
-        0.0,
         invocation_extinction(),
         invocation_scatter_scale(),
         invocation_scattering_asymmetry(),
@@ -120,9 +119,7 @@ fn far_field_water(
         vec3(0.0, 1.0, 0.0),
     );
     let t_end = min(PATH_LENGTH_MAX, water_depth / max(abs(to_view.y), 0.02));
-    let diffuse_irradiance = sample_diffuse_environment(vec3(0.0, 1.0, 0.0));
     var body = surface_medium_radiance(vec3(0.0), to_view, t_end);
-    body += diffuse_irradiance * GODOT_WATER_ALBEDO;
 
     let perceptual_roughness = max(surface.reflection.w, 0.05);
     let reflection = reflect(-to_view, lighting_normal);
@@ -146,8 +143,6 @@ fn far_field_water(
             light.color.rgb,
         );
         let light_radiance = filtered_light_color * view.exposure;
-        let lambertian = 0.5 * max(dot(lighting_normal, light_direction), 2e-5);
-        body += lambertian * light_radiance * GODOT_WATER_ALBEDO;
         // Preserve broad SSS without near-only texture samples.
         let dot_nv = max(dot(lighting_normal, to_view), 2e-5);
         let sss_light_mask = smith_masking_shadowing(surface.sun.y, dot_nv);
@@ -204,6 +199,13 @@ fn camera_eye_depth(uv: vec2<f32>, raw_depth: f32) -> f32 {
     return max(-view_position.z / max(view_position.w, LUMINANCE_EPSILON), 0.0);
 }
 
+fn camera_eye_distance(uv: vec2<f32>, raw_depth: f32) -> f32 {
+    let ndc = vec3(uv * vec2(2.0, -2.0) + vec2(-1.0, 1.0), raw_depth);
+    let view_position = view.view_from_clip * vec4(ndc, 1.0);
+    let eye = view_position.xyz / max(view_position.w, LUMINANCE_EPSILON);
+    return length(eye);
+}
+
 fn empty_camera_depth_path() -> CameraDepthPath {
     var result: CameraDepthPath;
     result.path_length = 0.0;
@@ -226,15 +228,16 @@ fn camera_depth_path(in: SurfaceVertexOutput) -> CameraDepthPath {
     let scene_raw_depth = prepass_utils::prepass_depth(in.position, 0u);
     result.has_background = scene_raw_depth > 0.0;
     result.scene_z = camera_eye_depth(result.screen_uv, scene_raw_depth);
-    let pixel_z = max(-(view.view_from_world * in.world_position).z, 0.0);
-    result.path_length = max(result.scene_z - pixel_z, 0.0);
+    let scene_distance = camera_eye_distance(result.screen_uv, scene_raw_depth);
+    let surface_distance = length(in.world_position.xyz - view.world_position.xyz);
+    result.path_length = max(scene_distance - surface_distance, 0.0);
 #endif
     return result;
 }
 
 // Reimplementation of the approach in Crest `OceanEmission.hlsl:195-242`. The opaque camera depth,
-// never SeaFloorDepth LodData, determines the view-ray water path and whether
-// a refracted sample landed on geometry in front of the water.
+// never SeaFloorDepth LodData, determines the Euclidean camera-ray water path
+// and whether a refracted sample landed on geometry in front of the water.
 fn camera_depth_debug_from_path(
     in: SurfaceVertexOutput,
     normal: vec3<f32>,
@@ -329,14 +332,9 @@ fn resolve_near_surface(
 fn sample_water_medium(
     in: SurfaceVertexOutput,
     surface_lod: u32,
-    lighting_normal: vec3<f32>,
     mode: u32,
 ) -> MediumState {
     let water_depth = blended_water_depth(in.undisplaced_xz);
-    var diffuse_irradiance = vec3(0.0);
-    if mode >= DEBUG_MODE_BEAUTY {
-        diffuse_irradiance = sample_diffuse_environment(lighting_normal);
-    }
     var foam_density = 0.0;
     if mode != DEBUG_MODE_SEA_FLOOR {
         foam_density = sample_foam_density(
@@ -346,7 +344,7 @@ fn sample_water_medium(
         );
     }
     return MediumState(
-        diffuse_irradiance,
+        vec3(0.0),
         water_depth,
         foam_density,
     );

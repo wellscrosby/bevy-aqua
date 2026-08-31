@@ -191,7 +191,6 @@ fn shade_water_body(
         // irradiance is the scene-driven equivalent; no constant radiance
         // floor is allowed when that environment is dark or absent.
         foam_ambient_radiance = sample_diffuse_environment(vec3(0.0, 1.0, 0.0));
-        body += medium.diffuse_irradiance * GODOT_WATER_ALBEDO;
         if foam.visible_density > 0.0 {
             body += foam_bubble_colour(
                 in.world_position.xz,
@@ -207,17 +206,6 @@ fn shade_water_body(
     }
     // Crest's final Fresnel composition supplies the `(1.0 - fresnel)`
     // modulation exactly once.
-    if mode >= DEBUG_MODE_BEAUTY && lights.n_directional_lights > 0u {
-        let light = lights.directional_lights[0u];
-        let light_direction = safe_normalize(
-            light.direction_to_light,
-            vec3(0.0, 1.0, 0.0),
-        );
-        let light_radiance = primary.radiance;
-        let lambertian = 0.5 * max(dot(near.lighting_normal, light_direction), 2e-5);
-        body += lambertian * light_radiance * GODOT_WATER_ALBEDO;
-    }
-
     let perceptual_roughness = unresolved_wave_roughness(
         in.undisplaced_xz,
         to_view,
@@ -551,7 +539,7 @@ fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
     let body_optics = bounded && params.optics_a.w > 0.5;
     set_body_optics(
         select(surface.fog_density.rgb, params.optics_a.rgb, body_optics),
-        select(1.0, params.optics_b.x, body_optics),
+        select(surface.fog_density.w, params.optics_b.x, body_optics),
         select(surface.far_tier.w, params.optics_b.w, body_optics),
     );
     // Discharge reads as roughness: faster narrows break up more, banks and
@@ -603,7 +591,7 @@ fn fragment(in: SurfaceVertexOutput) -> @location(0) vec4<f32> {
 
     let near = resolve_near_surface(in, surface_lod, geometric_normal, far_tier, mode);
     let primary = resolve_primary_light(in, near.normal);
-    let medium = sample_water_medium(in, surface_lod, near.lighting_normal, mode);
+    let medium = sample_water_medium(in, surface_lod, mode);
     if mode == DEBUG_MODE_SEA_FLOOR {
         let depth = clamp(medium.water_depth / surface.sea_floor.y, 0.0, 1.0);
         return vec4(1.0 - depth, 0.0, depth, 1.0);

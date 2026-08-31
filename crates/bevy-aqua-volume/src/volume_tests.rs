@@ -22,6 +22,18 @@ fn refract_air_to_water(l_air: Vec3) -> Option<Vec3> {
     Some(Vec3::new(xz.x, cos_water, xz.y))
 }
 
+fn refract_view_into_water(rd_air: Vec3) -> Vec3 {
+    let eta = 1.0 / N_WATER;
+    let cos_i = (-rd_air.y).clamp(0.0, 1.0);
+    let sin2_t = eta * eta * (1.0 - cos_i * cos_i).max(0.0);
+    let cos_t = (1.0 - sin2_t).max(0.0).sqrt();
+    Vec3::new(rd_air.x * eta, -cos_t, rd_air.z * eta)
+}
+
+fn air_ray_water_path(depth: f32, rd_air: Vec3) -> f32 {
+    depth / (-rd_air.y).max(0.02)
+}
+
 fn downwelling_integral(sigma: f32, t: f32, rd_y: f32, l_y: f32, d0: f32) -> f32 {
     let ly = l_y.max(0.02);
     let i0 = (-sigma * (d0 / ly)).exp();
@@ -174,4 +186,22 @@ fn looking_along_the_light_uses_path_length() {
     let along = downwelling_integral(sigma, t, l_y, l_y, d0);
     let expected = t * (-sigma * (d0 / l_y)).exp();
     assert!((along - expected).abs() < 1e-4);
+}
+
+#[test]
+fn water_leaving_keeps_the_air_camera_path() {
+    let depth = 2.0;
+    let grazing = Vec3::new(0.8, -0.2, 0.0).normalize();
+    let t_air = air_ray_water_path(depth, grazing);
+    let water = refract_view_into_water(grazing);
+    let t_snell = t_air * (-grazing.y) / (-water.y);
+    assert!(t_air > 8.0);
+    assert!(t_snell < 0.5 * t_air);
+}
+
+#[test]
+fn water_leaving_divides_haze_by_n_squared() {
+    let haze_water = Vec3::splat(1.78);
+    let leaving = haze_water / (N_WATER * N_WATER);
+    assert!((leaving.x - 1.0).abs() < 0.01);
 }

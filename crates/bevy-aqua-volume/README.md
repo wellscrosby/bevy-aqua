@@ -7,8 +7,10 @@ weak, slightly blue coefficient times `scatter_scale`, clamped below
 extinction, so red absorption is not scattered back. Haze colour is the sun
 and sky after downwelling, not the cascade body paints.
 
-The same `aqua::medium` integral shades the cascade surface body from above,
-starting at the mesh with `d0 = 0`. This pass still only runs underwater.
+The same `aqua::medium` integral shades the cascade surface from above as
+water-leaving radiance: the camera ray that sampled transmission, the
+in-water radiance divided by `n²`, and Fresnel mixing that body with sky
+reflection. This pass still only runs underwater.
 
 Ambient downwelling is vertical. Directional lights are refracted at the
 surface, then fall off along `depth / L.y`, so sun elevation changes how

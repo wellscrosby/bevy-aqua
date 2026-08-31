@@ -292,7 +292,7 @@ pub struct SurfaceParams {
     /// x: mode, y: shader-property refraction strength, z: debug range,
     /// w: bilinear-foam diagnostic flag.
     pub debug: Vec4,
-    /// rgb: ocean Beer-Lambert extinction per channel; w reserved.
+    /// rgb: ocean Beer-Lambert extinction per channel; w: particle scatter scale.
     pub fog_density: Vec4,
     /// x: maximum sampled depth; y: debug range; z: waterline fade depth;
     /// w: direct-sun visibility. Depths are metres.
@@ -321,7 +321,7 @@ pub struct SurfaceParams {
 impl SurfaceParams {
     /// Applies one optics preset's extinction and crest SSS tint to the uniform.
     pub fn apply_optics(&mut self, optics: &WaterOptics) {
-        self.fog_density = optics.extinction.extend(0.0);
+        self.fog_density = optics.extinction.extend(optics.scatter_scale.max(0.0));
         self.sss_tint = optics.sss_tint.extend(0.0);
     }
 }
@@ -339,7 +339,7 @@ impl Default for SurfaceParams {
             // Shipped `Ocean.mat:145` uses strength 1.0; Aqua retains 0.5 for the accepted view.
             debug: Vec4::new(0.0, 0.5, 32.0, 0.0),
             // Shader-property extinction (`Ocean.shader:146`); Ocean.mat:185 differs.
-            fog_density: Vec4::new(0.9, 0.3, 0.35, 0.0),
+            fog_density: Vec4::new(0.9, 0.3, 0.35, 0.2),
             // Maximum depth, debug range, waterline fade, direct-sun visibility.
             sea_floor: Vec4::new(32.0, 10.0, 1.0, 0.0),
             // Shader-property SSS (`Ocean.shader:48,50-54`); Ocean.mat:156,164-165,195 differs.

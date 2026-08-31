@@ -2,8 +2,11 @@
 
 //! Depth, medium, and transmission optics for Aqua shaders.
 //!
-//! `medium.wgsl` is the shared water-medium integral. `optics.wgsl` consumes
-//! Aqua's registered cascade, material-type, wave, foam, and shore contracts.
+//! `medium.wgsl` is the shared water-medium integral and the surface
+//! water-leaving conversion (camera-ray path matching transmission, in-water
+//! radiance / n²).
+//! `optics.wgsl` consumes Aqua's registered cascade, material-type, wave,
+//! foam, and shore contracts.
 //! Register both before queuing the composed water material.
 
 use bevy::{asset::embedded_asset, prelude::*};

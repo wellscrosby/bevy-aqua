@@ -1,6 +1,8 @@
 // Closed-form water medium: RGB Beer-Lambert transmittance and in-scatter
-// from directional downwelling. Shared by the underwater fullscreen pass
-// and the cascade surface body.
+// from directional downwelling. The underwater pass evaluates this in water.
+// The cascade surface converts the same integral to air as water-leaving
+// radiance along the camera ray that sampled transmission (in-water
+// radiance / n²). That ray is not Snell-bent: the opaque buffer is not.
 
 #define_import_path aqua::medium
 
@@ -48,6 +50,30 @@ fn refract_air_to_water(l_air: vec3<f32>) -> vec3<f32> {
         xz = l_air.xz / horiz_len * sqrt(sin2_water);
     }
     return vec3(xz.x, cos_water, xz.y);
+}
+
+// Surface observer: same camera-ray integral as underwater, then n² into air.
+// Fresnel transmittance is the later (1-F) mix, not applied here.
+fn water_leaving_radiance(
+    scene: vec3<f32>,
+    to_view: vec3<f32>,
+    t_end: f32,
+    sigma_t: vec3<f32>,
+    scatter_scale: f32,
+    g: f32,
+    sky_fallback: vec3<f32>,
+) -> vec3<f32> {
+    let t = min(max(t_end, 0.0), PATH_LENGTH_MAX);
+    return medium_radiance(
+        scene,
+        -to_view,
+        t,
+        0.0,
+        sigma_t,
+        scatter_scale,
+        g,
+        sky_fallback,
+    ) / (N_WATER * N_WATER);
 }
 
 // ∫_0^t I0 exp(-σ (d0 - s rd.y) / L.y) exp(-σ s) ds
