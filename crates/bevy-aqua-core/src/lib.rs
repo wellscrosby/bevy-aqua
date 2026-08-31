@@ -129,8 +129,8 @@ impl WaterOptics {
     /// Accepted dark blue ocean profile: red-heavy extinction removes red
     /// first while the blue-heavy scatter keeps an ocean-blue body.
     pub const DEEP_OCEAN: Self = Self {
-        extinction: Vec3::new(0.90, 0.30, 0.35),
-        scatter_scale: 1.0,
+        extinction: Vec3::new(0.90, 0.45, 0.20),
+        scatter_scale: 0.2,
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.088_506_84, 0.497, 0.456_150_74),
@@ -139,7 +139,7 @@ impl WaterOptics {
     /// restrained teal.
     pub const COASTAL: Self = Self {
         extinction: Vec3::new(0.86, 0.24, 0.39),
-        scatter_scale: 1.0,
+        scatter_scale: 0.2,
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.06, 0.55, 0.45),
@@ -148,7 +148,7 @@ impl WaterOptics {
     /// for a stylized tropical teal.
     pub const TROPICAL: Self = Self {
         extinction: Vec3::new(0.78, 0.14, 0.52),
-        scatter_scale: 1.0,
+        scatter_scale: 0.2,
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.025, 0.62, 0.38),
@@ -158,7 +158,7 @@ impl WaterOptics {
     /// sky reflection that actually arrives at grazing angles.
     pub const CLEAR_FRESH: Self = Self {
         extinction: Vec3::new(0.24, 0.13, 0.10),
-        scatter_scale: 0.10,
+        scatter_scale: 0.05,
         sun_roughness: 0.1,
         ..Self::DEEP_OCEAN
     };
