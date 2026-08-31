@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - A focused native/WebGPU `debug_views` example that automatically cycles
   through every `AquaDebug` diagnostic mode.
-- Cascade underside shading: water-to-air interface when looking up from below. Snell's window is air radiance times n² times Fresnel transmittance; TIR and the reflected lobe are the medium integral along the bounce.
+- Cascade underside shading: water-to-air interface when looking up from below. Snell's window is air radiance times n² times Fresnel transmittance; TIR and the reflected lobe are the medium integral along the bounce, with a screen-space depth march for on-screen underwater geometry.
 - Underwater volume pass: closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, particle Henyey-Greenstein plus molecular Rayleigh) when the camera is below the local surface. Particle scatter is a weak blue-tilted coefficient times `scatter_scale`, not a copy of extinction. Henyey-Greenstein `g` is `WaterOptics::scattering_asymmetry`.
 
 ### Changed

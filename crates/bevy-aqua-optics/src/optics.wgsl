@@ -458,6 +458,10 @@ fn resolve_transmission(
 
 const UNDERSIDE_AIR_MARGIN: f32 = 0.05;
 const UNDERSIDE_WARP: f32 = 0.12;
+const TIR_SSR_STEPS: u32 = 24u;
+const TIR_SSR_STEP: f32 = 1.0;
+const TIR_SSR_START: f32 = 0.3;
+const TIR_SSR_THICKNESS: f32 = 2.0;
 
 fn reconstruct_world_from_uv(uv: vec2<f32>, raw_depth: f32) -> vec3<f32> {
     let ndc = vec3(uv * vec2(2.0, -2.0) + vec2(-1.0, 1.0), raw_depth);
@@ -465,9 +469,65 @@ fn reconstruct_world_from_uv(uv: vec2<f32>, raw_depth: f32) -> vec3<f32> {
     return world.xyz / max(world.w, LUMINANCE_EPSILON);
 }
 
+fn underside_bounce_radiance(
+    origin: vec3<f32>,
+    bounced: vec3<f32>,
+    surface_y: f32,
+) -> vec3<f32> {
+    var scene = vec3(0.0);
+    var t_end = PATH_LENGTH_MAX;
+#ifdef DEPTH_PREPASS
+    let viewport_origin = view.viewport.xy;
+    let viewport_size = view.viewport.zw;
+    var t = TIR_SSR_START;
+    for (var i = 0u; i < TIR_SSR_STEPS; i++) {
+        t += TIR_SSR_STEP;
+        let world = origin + bounced * t;
+        if world.y > surface_y - UNDERSIDE_AIR_MARGIN {
+            break;
+        }
+        let clip = view.clip_from_world * vec4(world, 1.0);
+        if clip.w <= LUMINANCE_EPSILON {
+            break;
+        }
+        let ndc = clip.xyz / clip.w;
+        let uv = ndc.xy * vec2(0.5, -0.5) + vec2(0.5);
+        if any(uv < vec2(0.0)) || any(uv > vec2(1.0)) {
+            break;
+        }
+        let pixel = uv * (viewport_size - vec2(1.0)) + viewport_origin;
+        let scene_depth = prepass_utils::prepass_depth(vec4(pixel, 0.0, 1.0), 0u);
+        if scene_depth <= 0.0 {
+            continue;
+        }
+        let ray_eye = camera_eye_depth(uv, ndc.z);
+        let scene_eye = camera_eye_depth(uv, scene_depth);
+        if ray_eye > scene_eye && (ray_eye - scene_eye) < TIR_SSR_THICKNESS {
+            let hit = reconstruct_world_from_uv(uv, scene_depth);
+            if hit.y < surface_y - UNDERSIDE_AIR_MARGIN {
+                scene = opaque_background(uv);
+                t_end = clamp(dot(hit - origin, bounced), TIR_SSR_START, PATH_LENGTH_MAX);
+                break;
+            }
+        }
+    }
+#endif
+    return medium_radiance(
+        scene,
+        bounced,
+        t_end,
+        0.0,
+        invocation_extinction(),
+        invocation_scatter_scale(),
+        invocation_scattering_asymmetry(),
+        vec3(1.0),
+    );
+}
+
 // Water-to-air interface. Scatter along camera-to-mesh is the volume pass.
 // The window is air radiance * n² * T. TIR and the reflected lobe are
-// in-water radiance along the bounce, starting just under the surface.
+// in-water radiance along the bounce, with a depth-buffer march for geometry
+// still on screen and the open-path integral on a miss.
 fn shade_underside(
     in: SurfaceVertexOutput,
     surface_lod: u32,
@@ -479,15 +539,10 @@ fn shade_underside(
     let water_normal = safe_normalize(-near.normal, vec3(0.0, -1.0, 0.0));
     let incident = -to_view;
     let bounced = reflect(incident, water_normal);
-    let reflected = medium_radiance(
-        vec3(0.0),
+    let reflected = underside_bounce_radiance(
+        in.world_position.xyz,
         bounced,
-        PATH_LENGTH_MAX,
-        0.0,
-        invocation_extinction(),
-        invocation_scatter_scale(),
-        invocation_scattering_asymmetry(),
-        vec3(1.0),
+        in.world_position.y,
     );
 
     let transmitted = refract(incident, water_normal, N_WATER);
