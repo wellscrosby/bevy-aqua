@@ -8,7 +8,7 @@
     mesh_view_bindings::{globals, lights, view},
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
-#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, invocation_scattering_asymmetry, sample_planar_reflection, screen_xz_footprint, surface}
+#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_BEER_LAMBERT, DEBUG_MODE_REFRACTION_VALIDITY, DEBUG_MODE_SEA_FLOOR, DEBUG_MODE_TRANSMISSION, DEBUG_MODE_UNREFRACTED, DEBUG_MODE_WATER_PATH, LUMINANCE_EPSILON, MIN_NORMAL_Y, capillary_resolved_weight, cascade_layout, godot_fresnel, invocation_extinction, invocation_ripple, invocation_scatter_scale, invocation_scatter_tint, invocation_scattering_asymmetry, sample_planar_reflection, screen_xz_footprint, surface}
 #import aqua::medium::{N_WATER, PATH_LENGTH_MAX, attenuate_underwater_scene, fresnel_water_to_air, medium_radiance, water_leaving_radiance}
 #import aqua::waves::displace::{FFT_JONSWAP_SLOPE_VARIANCE, GERSTNER_SLOPE_VARIANCE, WAVE_NORMALS_SLOPE_VARIANCE, capillary_normal_slope, detail_normal_sample}
 #import aqua::foam::shade::{sample_foam_density}
@@ -96,6 +96,7 @@ fn surface_medium_radiance(scene: vec3<f32>, to_view: vec3<f32>, t_end: f32) -> 
         t_end,
         invocation_extinction(),
         invocation_scatter_scale(),
+        invocation_scatter_tint(),
         invocation_scattering_asymmetry(),
     );
 }
@@ -547,6 +548,7 @@ fn underside_bounce_radiance(
         0.0,
         invocation_extinction(),
         invocation_scatter_scale(),
+        invocation_scatter_tint(),
         invocation_scattering_asymmetry(),
     );
 }

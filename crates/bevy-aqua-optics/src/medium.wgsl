@@ -20,9 +20,8 @@ const MIN_L_Y: f32 = 0.02;
 const KAPPA_EPS: f32 = 1e-5;
 const OPTICAL_CLAMP: f32 = 80.0;
 const SCATTER_EPS: f32 = 1e-8;
-// Particle scatter at 550 nm for scatter_scale = 1, in 1/m. Weakly blue (~λ^{-1}).
+// Particle scatter at 550 nm for scatter_scale = 1 and green tint 1, in 1/m.
 const PARTICLE_SCATTER: f32 = 0.02;
-const SCATTER_SPECTRUM: vec3<f32> = vec3(0.85, 1.0, 1.22);
 // Smith and Baker 1981 molecular scatter at 650/550/450 nm, in 1/m.
 const RAYLEIGH: vec3<f32> = vec3(0.00095, 0.00193, 0.00456);
 
@@ -137,6 +136,7 @@ fn water_leaving_radiance(
     t_end: f32,
     sigma_t: vec3<f32>,
     scatter_scale: f32,
+    scatter_tint: vec3<f32>,
     g: f32,
 ) -> vec3<f32> {
     let t = min(max(t_end, 0.0), PATH_LENGTH_MAX);
@@ -147,6 +147,7 @@ fn water_leaving_radiance(
         0.0,
         sigma_t,
         scatter_scale,
+        scatter_tint,
         g,
     ) / (N_WATER * N_WATER);
 }
@@ -182,13 +183,14 @@ fn medium_radiance(
     d0: f32,
     sigma_t: vec3<f32>,
     scatter_scale: f32,
+    scatter_tint: vec3<f32>,
     g: f32,
 ) -> vec3<f32> {
     if t_end < 1e-4 {
         return scene;
     }
 
-    let sigma_p = PARTICLE_SCATTER * max(scatter_scale, 0.0) * SCATTER_SPECTRUM;
+    let sigma_p = PARTICLE_SCATTER * max(scatter_scale, 0.0) * max(scatter_tint, vec3(0.0));
     let sigma_s = min(sigma_t, sigma_p + RAYLEIGH);
     let exposure = view.exposure;
 

@@ -13,6 +13,7 @@
 
 struct VolumeUniform {
     extinction: vec4<f32>,
+    scatter: vec4<f32>,
     environment: vec4<f32>,
     sea: vec4<f32>,
 }
@@ -115,6 +116,7 @@ fn fragment(
             d0,
             volume.extinction.rgb,
             volume.extinction.w,
+            volume.scatter.rgb,
             volume.environment.x,
         ),
         1.0,

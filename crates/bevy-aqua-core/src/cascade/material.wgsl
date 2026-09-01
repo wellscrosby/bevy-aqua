@@ -543,6 +543,7 @@ fn fragment(
     set_body_optics(
         select(surface.fog_density.rgb, params.optics_a.rgb, body_optics),
         select(surface.fog_density.w, params.optics_b.x, body_optics),
+        select(surface.scatter_tint.rgb, params.optics_c.rgb, body_optics),
         select(surface.far_tier.w, params.optics_b.w, body_optics),
     );
     // Discharge reads as roughness: faster narrows break up more, banks and

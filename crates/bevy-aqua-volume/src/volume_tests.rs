@@ -153,12 +153,12 @@ fn lower_sun_dies_faster_with_depth() {
 
 const RAYLEIGH: Vec3 = Vec3::new(0.00095, 0.00193, 0.00456);
 
-fn particle_scatter(scatter_scale: f32) -> Vec3 {
-    Vec3::new(0.85, 1.0, 1.22) * 0.02 * scatter_scale.max(0.0)
+fn particle_scatter(scatter_scale: f32, scatter_tint: Vec3) -> Vec3 {
+    scatter_tint.max(Vec3::ZERO) * 0.02 * scatter_scale.max(0.0)
 }
 
-fn total_scatter(scatter_scale: f32, extinction: Vec3) -> Vec3 {
-    (particle_scatter(scatter_scale) + RAYLEIGH).min(extinction)
+fn total_scatter(scatter_scale: f32, scatter_tint: Vec3, extinction: Vec3) -> Vec3 {
+    (particle_scatter(scatter_scale, scatter_tint) + RAYLEIGH).min(extinction)
 }
 
 fn henyey_greenstein(cos_theta: f32, g: f32) -> f32 {
@@ -170,8 +170,8 @@ fn phase_rayleigh(cos_theta: f32) -> f32 {
     3.0 / (16.0 * std::f32::consts::PI) * (1.0 + cos_theta * cos_theta)
 }
 
-fn mixed_phase(cos_theta: f32, scatter_scale: f32, g: f32) -> Vec3 {
-    let sigma_p = particle_scatter(scatter_scale);
+fn mixed_phase(cos_theta: f32, scatter_scale: f32, scatter_tint: Vec3, g: f32) -> Vec3 {
+    let sigma_p = particle_scatter(scatter_scale, scatter_tint);
     let denom = (sigma_p + RAYLEIGH).max(Vec3::splat(1e-8));
     (sigma_p * henyey_greenstein(cos_theta, g) + RAYLEIGH * phase_rayleigh(cos_theta)) / denom
 }
@@ -179,7 +179,7 @@ fn mixed_phase(cos_theta: f32, scatter_scale: f32, g: f32) -> Vec3 {
 #[test]
 fn red_extinction_is_mostly_absorption() {
     let optics = WaterOptics::DEEP_OCEAN;
-    let sigma_s = total_scatter(optics.scatter_scale, optics.extinction);
+    let sigma_s = total_scatter(optics.scatter_scale, optics.scatter_tint, optics.extinction);
     let omega = sigma_s / optics.extinction;
     assert!(sigma_s.x < sigma_s.y);
     assert!(sigma_s.y < sigma_s.z);
@@ -188,9 +188,27 @@ fn red_extinction_is_mostly_absorption() {
 }
 
 #[test]
+fn scatter_tint_recolors_particle_haze() {
+    let ocean = WaterOptics::DEEP_OCEAN;
+    let silt = WaterOptics {
+        scatter_tint: Vec3::new(1.2, 1.0, 0.55),
+        ..ocean
+    };
+    let blue = particle_scatter(ocean.scatter_scale, ocean.scatter_tint);
+    let yellow = particle_scatter(silt.scatter_scale, silt.scatter_tint);
+    assert!(blue.z > blue.x);
+    assert!(yellow.x > yellow.z);
+}
+
+#[test]
 fn backscatter_is_molecular_not_an_isotropic_gain() {
     let optics = WaterOptics::DEEP_OCEAN;
-    let back = mixed_phase(-1.0, optics.scatter_scale, optics.scattering_asymmetry);
+    let back = mixed_phase(
+        -1.0,
+        optics.scatter_scale,
+        optics.scatter_tint,
+        optics.scattering_asymmetry,
+    );
     let hg_back = henyey_greenstein(-1.0, optics.scattering_asymmetry);
     assert!(back.z > hg_back);
     assert!(back.z < 0.15);
@@ -200,8 +218,18 @@ fn backscatter_is_molecular_not_an_isotropic_gain() {
 #[test]
 fn forward_scatter_is_still_henyey_greenstein() {
     let optics = WaterOptics::DEEP_OCEAN;
-    let forward = mixed_phase(1.0, optics.scatter_scale, optics.scattering_asymmetry);
-    let back = mixed_phase(-1.0, optics.scatter_scale, optics.scattering_asymmetry);
+    let forward = mixed_phase(
+        1.0,
+        optics.scatter_scale,
+        optics.scatter_tint,
+        optics.scattering_asymmetry,
+    );
+    let back = mixed_phase(
+        -1.0,
+        optics.scatter_scale,
+        optics.scatter_tint,
+        optics.scattering_asymmetry,
+    );
     let hg_forward = henyey_greenstein(1.0, optics.scattering_asymmetry);
     assert!(forward.y > 1.0);
     assert!(forward.y > back.y * 10.0);

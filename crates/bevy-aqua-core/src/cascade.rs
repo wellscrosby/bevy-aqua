@@ -226,6 +226,8 @@ pub struct BodyParams {
     /// x: scatter-scale for particle σs; y: sun roughness; z: plain Schlick
     /// flag; w: Henyey-Greenstein `g`.
     optics_b: Vec4,
+    /// rgb: particle scatter chromaticity; w reserved.
+    optics_c: Vec4,
 }
 
 impl BodyParams {
@@ -238,6 +240,7 @@ impl BodyParams {
             aabb_size: Vec4::ZERO,
             optics_a: Vec4::ZERO,
             optics_b: Vec4::ZERO,
+            optics_c: Vec4::ZERO,
         }
     }
 
@@ -252,16 +255,17 @@ impl BodyParams {
     ) -> Self {
         // Body Fresnel is plain Schlick (no roughness damping); the ocean
         // preset keeps its damped curve.
-        let (extinction, scale, roughness, schlick, g, enabled) = match optics {
+        let (extinction, scale, tint, roughness, schlick, g, enabled) = match optics {
             Some(optics) => (
                 optics.extinction,
                 optics.scatter_scale,
+                optics.scatter_tint,
                 optics.sun_roughness,
                 1.0,
                 optics.scattering_asymmetry,
                 1.0,
             ),
-            None => (Vec3::ZERO, 1.0, -1.0, 0.0, 0.0, 0.0),
+            None => (Vec3::ZERO, 1.0, Vec3::ZERO, -1.0, 0.0, 0.0, 0.0),
         };
         Self {
             flags: Vec4::new(1.0, if has_flow { 1.0 } else { 0.0 }, 0.0, 0.0),
@@ -270,6 +274,7 @@ impl BodyParams {
             aabb_size: Vec4::new(aabb_size.x, aabb_size.y, 0.0, 0.0),
             optics_a: Vec4::new(extinction.x, extinction.y, extinction.z, enabled),
             optics_b: Vec4::new(scale, roughness, schlick, g),
+            optics_c: Vec4::new(tint.x, tint.y, tint.z, 0.0),
         }
     }
 }
@@ -282,6 +287,8 @@ pub struct BodyOptics {
     pub extinction: Vec3,
     /// Multiplier on particle scatter for the shared water medium.
     pub scatter_scale: f32,
+    /// Per-channel particle scatter chromaticity for the shared water medium.
+    pub scatter_tint: Vec3,
     /// Henyey-Greenstein `g` for the shared water medium.
     pub scattering_asymmetry: f32,
     /// Surface roughness driving the Fresnel response; negative inherits
@@ -307,6 +314,8 @@ pub struct SurfaceParams {
     pub debug: Vec4,
     /// rgb: ocean Beer-Lambert extinction per channel; w: particle scatter scale.
     pub fog_density: Vec4,
+    /// rgb: particle scatter chromaticity; w reserved.
+    pub scatter_tint: Vec4,
     /// x: maximum sampled depth; y: debug range; z: waterline fade depth;
     /// w: direct-sun visibility. Depths are metres.
     pub sea_floor: Vec4,
@@ -332,9 +341,11 @@ pub struct SurfaceParams {
 }
 
 impl SurfaceParams {
-    /// Applies one optics preset's extinction and crest SSS tint to the uniform.
+    /// Applies one optics preset's extinction, particle scatter, and crest SSS
+    /// tint to the uniform.
     pub fn apply_optics(&mut self, optics: &WaterOptics) {
         self.fog_density = optics.extinction.extend(optics.scatter_scale.max(0.0));
+        self.scatter_tint = optics.scatter_tint.max(Vec3::ZERO).extend(0.0);
         self.sss_tint = optics.sss_tint.extend(0.0);
     }
 }
@@ -353,6 +364,7 @@ impl Default for SurfaceParams {
             debug: Vec4::new(0.0, 0.5, 32.0, 0.0),
             // Shader-property extinction (`Ocean.shader:146`); Ocean.mat:185 differs.
             fog_density: Vec4::new(0.9, 0.3, 0.35, 0.2),
+            scatter_tint: Vec4::new(0.85, 1.0, 1.22, 0.0),
             // Maximum depth, debug range, waterline fade, direct-sun visibility.
             sea_floor: Vec4::new(32.0, 10.0, 1.0, 0.0),
             // Shader-property SSS (`Ocean.shader:48,50-54`); Ocean.mat:156,164-165,195 differs.

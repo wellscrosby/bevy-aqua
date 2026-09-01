@@ -101,18 +101,18 @@ pub struct AnimWavesStatus {
 }
 
 /// Authored water optics for one body: Beer-Lambert extinction per channel,
-/// particle-scatter scale, Henyey-Greenstein `g`, and crest SSS tint.
-/// Localized bodies shade from `extinction`, `scatter_scale`,
-/// `scattering_asymmetry`, and `sun_roughness`.
+/// particle-scatter scale and chromaticity, Henyey-Greenstein `g`, and crest
+/// SSS tint. Localized bodies shade from `extinction`, `scatter_scale`,
+/// `scatter_tint`, `scattering_asymmetry`, and `sun_roughness`.
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct WaterOptics {
     /// Per-channel extinction in inverse metres. Clear mountain water:
     /// red dies a little faster than green/blue, giving brown-green pools.
     pub extinction: Vec3,
-    /// Particle-scatter multiplier for the underwater volume and the surface
-    /// body. `1` is the ocean particle load. Small values keep deep pools
-    /// dark instead of filling them with in-scatter.
+    /// Particle-scatter multiplier for the underwater volume and the surface body.
     pub scatter_scale: f32,
+    /// Per-channel particle scatter chromaticity.
+    pub scatter_tint: Vec3,
     /// Henyey-Greenstein `g` for the shared medium. Higher values brighten
     /// looking toward the sun and darken looking away.
     pub scattering_asymmetry: f32,
@@ -131,6 +131,7 @@ impl WaterOptics {
     pub const DEEP_OCEAN: Self = Self {
         extinction: Vec3::new(0.3, 0.1, 0.05),
         scatter_scale: 0.1,
+        scatter_tint: Vec3::new(0.85, 1.0, 1.22),
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.088_506_84, 0.497, 0.456_150_74),
@@ -140,6 +141,7 @@ impl WaterOptics {
     pub const COASTAL: Self = Self {
         extinction: Vec3::new(0.86, 0.24, 0.39),
         scatter_scale: 0.2,
+        scatter_tint: Vec3::new(0.85, 1.0, 1.22),
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.06, 0.55, 0.45),
@@ -149,6 +151,7 @@ impl WaterOptics {
     pub const TROPICAL: Self = Self {
         extinction: Vec3::new(0.78, 0.14, 0.52),
         scatter_scale: 0.2,
+        scatter_tint: Vec3::new(0.85, 1.0, 1.22),
         scattering_asymmetry: 0.8,
         sun_roughness: -1.0,
         sss_tint: Vec3::new(0.025, 0.62, 0.38),

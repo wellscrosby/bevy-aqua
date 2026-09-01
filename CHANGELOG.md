@@ -11,7 +11,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - An `underwater` example: open ocean, camera 20 m below the surface, looking
   toward an angled sun through Bevy's earth atmosphere.
 - Cascade underside shading: water-to-air interface when looking up from below. Snell's window is air radiance times n² times Fresnel transmittance; TIR and the reflected lobe are the medium integral along the bounce, with a screen-space depth march for on-screen underwater geometry.
-- Underwater volume pass: closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, particle Henyey-Greenstein plus molecular Rayleigh) when the camera is below the local surface. Particle scatter is a weak blue-tilted coefficient times `scatter_scale`, not a copy of extinction. Henyey-Greenstein `g` is `WaterOptics::scattering_asymmetry`. Opaque scene colour is scaled by the surface-to-hit sun path from the depth buffer, so a 50 m mesh in deep-ocean optics is barely lit and blue-green without a special material.
+- Underwater volume pass: closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, particle Henyey-Greenstein plus molecular Rayleigh) when the camera is below the local surface. Particle scatter is a weak coefficient times `scatter_scale` and `scatter_tint`, not a copy of extinction. Henyey-Greenstein `g` is `WaterOptics::scattering_asymmetry`. Opaque scene colour is scaled by the surface-to-hit sun path from the depth buffer, so a 50 m mesh in deep-ocean optics is barely lit and blue-green without a special material.
+- `WaterOptics::scatter_tint` authors particle-haze chromaticity for the shared medium. Presets keep the shipped weakly-blue spectrum `(0.85, 1, 1.22)`.
 
 ### Changed
 

@@ -69,6 +69,7 @@ pub(super) fn add(app: &mut App) {
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
 struct VolumeUniform {
     extinction: Vec4,
+    scatter: Vec4,
     environment: Vec4,
     sea: Vec4,
 }
@@ -275,6 +276,7 @@ fn volume_uniform(volume: &ExtractedVolume) -> VolumeUniform {
     let optics = volume.optics;
     VolumeUniform {
         extinction: optics.extinction.extend(optics.scatter_scale.max(0.0)),
+        scatter: optics.scatter_tint.max(Vec3::ZERO).extend(0.0),
         environment: Vec4::new(
             volume.optics.scattering_asymmetry,
             if volume.sample_waves { 1.0 } else { 0.0 },

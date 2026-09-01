@@ -3,7 +3,7 @@
 Fullscreen underwater volume for Aqua. When the camera is below the local
 water surface, a Core3d pass applies RGB Beer-Lambert transmittance and
 closed-form in-scatter along the underwater segment. Particle scatter is a
-weak, slightly blue coefficient times `scatter_scale`, plus molecular
+weak coefficient times `scatter_scale` and `scatter_tint`, plus molecular
 Rayleigh, clamped below extinction, so red absorption is not scattered
 back. Haze colour is directional sunlight after downwelling, not the
 cascade body paints. The phase is a normalized mix of particle

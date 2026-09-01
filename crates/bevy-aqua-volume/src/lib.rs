@@ -4,9 +4,10 @@
 //! pass applies RGB Beer-Lambert transmittance and closed-form in-scatter
 //! along the underwater segment. Empty far-plane pixels integrate a bounded
 //! path through the water instead of reconstructing the far clip as the path
-//! end. Extinction is absorption plus scatter. Particle scatter is a weak,
-//! slightly blue coefficient times [`WaterOptics::scatter_scale`], plus
-//! molecular Rayleigh, clamped below `σt`, so red dies instead of glowing.
+//! end. Extinction is absorption plus scatter. Particle scatter is a weak
+//! coefficient times [`WaterOptics::scatter_scale`] and
+//! [`WaterOptics::scatter_tint`], plus molecular Rayleigh, clamped below `σt`,
+//! so red dies instead of glowing.
 //! In-scatter colour is the downwelling light after a normalized mix of
 //! particle Henyey-Greenstein and Rayleigh. The cascade surface converts
 //! the same integral to air as water-leaving radiance along the camera ray

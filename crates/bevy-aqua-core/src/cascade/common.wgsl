@@ -101,6 +101,7 @@ struct SurfaceParams {
     sun: vec4<f32>,
     debug: vec4<f32>,
     fog_density: vec4<f32>,
+    scatter_tint: vec4<f32>,
     sea_floor: vec4<f32>,
     sss_tint: vec4<f32>,
     sss: vec4<f32>,
@@ -128,6 +129,8 @@ struct BodyParams {
     /// x: scatter-scale for particle σs; y: sun roughness; z: plain Schlick
     /// flag; w: Henyey-Greenstein `g`.
     optics_b: vec4<f32>,
+    /// rgb: particle scatter chromaticity; w reserved.
+    optics_c: vec4<f32>,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var lod_data: texture_2d_array<f32>;
@@ -267,9 +270,11 @@ var<private> invocation_optics_a: vec4<f32> = vec4(0.0);
 var<private> invocation_optics_b: vec4<f32> = vec4(0.0);
 
 /// Per-body water optics: extinction replaces the ocean Beer-Lambert
-/// coefficients and scatter_scale is particle load for the shared medium.
+/// coefficients, scatter_scale is particle load, and scatter_tint is haze
+/// chromaticity for the shared medium.
 var<private> body_extinction: vec3<f32> = vec3(0.0);
 var<private> body_scatter_scale: f32 = 1.0;
+var<private> body_scatter_tint: vec3<f32> = vec3(0.85, 1.0, 1.22);
 var<private> body_scattering_asymmetry: f32 = 0.8;
 
 /// Baked flow sample at the current fragment (xy: current m/s, z: signed
@@ -317,10 +322,17 @@ fn set_fragment_river(sample: vec4<f32>) {
 }
 
 /// Fragment entry: records the effective Beer-Lambert extinction, particle
-/// scatter scale, and Henyey-Greenstein `g` after fresh-water optics override.
-fn set_body_optics(extinction: vec3<f32>, scatter_scale: f32, scattering_asymmetry: f32) {
+/// scatter scale and tint, and Henyey-Greenstein `g` after fresh-water optics
+/// override.
+fn set_body_optics(
+    extinction: vec3<f32>,
+    scatter_scale: f32,
+    scatter_tint: vec3<f32>,
+    scattering_asymmetry: f32,
+) {
     body_extinction = extinction;
     body_scatter_scale = scatter_scale;
+    body_scatter_tint = scatter_tint;
     body_scattering_asymmetry = scattering_asymmetry;
 }
 
@@ -335,6 +347,10 @@ fn invocation_extinction() -> vec3<f32> {
 
 fn invocation_scatter_scale() -> f32 {
     return body_scatter_scale;
+}
+
+fn invocation_scatter_tint() -> vec3<f32> {
+    return body_scatter_tint;
 }
 
 fn invocation_scattering_asymmetry() -> f32 {
