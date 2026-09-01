@@ -29,9 +29,14 @@ pub use bevy_aqua_geom::{LOD_COUNT, TILE_RESOLUTION};
 pub const BASE_SCALE: f32 = 24.0;
 const LOD_SCALE_MULTIPLIER: f32 = 2.0;
 
-/// Cascade texture side length in texels; every AnimWaves/foam/FFT array
-/// uses this width and height.
+/// Cascade texture side length in texels; AnimWaves, FFT, and the packed
+/// surface array share this width and height. Foam keeps its own resolution.
 pub const RESOLUTION: u32 = 256;
+/// First array layer of the cached FFT normal-cross / Jacobian in the packed
+/// cascade texture. Displacement occupies `[0, LOD_COUNT)`.
+pub const SURFACE_LAYER_BASE: u32 = LOD_COUNT as u32;
+/// Displacement plus FFT surface, one layer per LOD each.
+pub const CASCADE_LAYER_COUNT: u32 = 2 * LOD_COUNT as u32;
 const COVERAGE_MULTIPLIER: f32 = 4.0;
 const CASCADE_COUNT: usize = LOD_COUNT + 1;
 const MAX_WAVELENGTH_TEXELS: f32 = 4.0;
@@ -63,15 +68,14 @@ pub struct Cascade {
 }
 
 /// The shared cascade resources one participant inserts at startup and
-/// everyone else reads: the material handle, the two displacement
-/// textures, and the live layout. Assembled by umbrella glue because it
-/// pulls foam textures from a feature resource. Extracted into the render
-/// app so render-side consumers see the same handles.
+/// everyone else reads: the material handle, the packed cascade texture,
+/// and the live layout. Assembled by umbrella glue because it pulls foam
+/// textures from a feature resource. Extracted into the render app so
+/// render-side consumers see the same handles.
 #[derive(Resource, Debug, Clone, bevy::render::extract_resource::ExtractResource)]
 pub struct Data {
     material: Handle<CascadeMaterial>,
     texture: Handle<Image>,
-    fft_surface: Handle<Image>,
     layout: GpuLayout,
 }
 
@@ -80,13 +84,11 @@ impl Data {
     pub fn new(
         material: Handle<CascadeMaterial>,
         texture: Handle<Image>,
-        fft_surface: Handle<Image>,
         layout: GpuLayout,
     ) -> Self {
         Self {
             material,
             texture,
-            fft_surface,
             layout,
         }
     }
@@ -97,10 +99,6 @@ impl Data {
 
     pub fn texture(&self) -> Handle<Image> {
         self.texture.clone()
-    }
-
-    pub fn fft_surface(&self) -> Handle<Image> {
-        self.fft_surface.clone()
     }
 
     pub fn layout(&self) -> &GpuLayout {
@@ -128,11 +126,11 @@ pub struct CascadeMaterial {
     #[texture(7, dimension = "2d_array")]
     #[sampler(8)]
     pub foam: Handle<Image>,
+    /// Foam breakup in red, bed caustics in green. One 2D texture so the
+    /// cascade material stays inside WebGPU's fragment sampled-texture limit.
     #[texture(9)]
     #[sampler(10)]
     pub foam_pattern: Handle<Image>,
-    #[texture(11, dimension = "2d_array")]
-    pub fft_surface: Handle<Image>,
     /// Global water fields: region uniform, per-slot parameters,
     /// level+slot map, and per-texel flow.
     #[uniform(15)]
@@ -149,9 +147,6 @@ pub struct CascadeMaterial {
     pub reflection_b: Handle<Image>,
     #[uniform(22)]
     pub reflections: PlanarReflectionParams,
-    #[texture(23)]
-    #[sampler(24)]
-    pub caustics: Handle<Image>,
 }
 
 /// One horizontal water level's mirrored view transform.
@@ -635,15 +630,16 @@ pub fn layout(camera: Vec2) -> [Cascade; LOD_COUNT] {
     })
 }
 
-/// Creates Crest's signed XYZ displacement array.
+/// Creates the published cascade array: displacement in layers
+/// `[0, LOD_COUNT)`, FFT surface in `[SURFACE_LAYER_BASE, CASCADE_LAYER_COUNT)`.
 ///
 /// Reimplementation of the approach in `Scripts/LodData/LodDataMgrAnimWaves.cs`.
 pub fn make_texture() -> Image {
-    make_array_texture(LOD_COUNT as u32)
+    make_array_texture(CASCADE_LAYER_COUNT)
 }
 
-/// Creates the FFT surface normal-cross array texture.
-pub fn make_fft_surface_texture() -> Image {
+/// Creates a LOD-only scratch array for AnimWaves combine intermediates.
+pub fn make_lod_scratch() -> Image {
     make_array_texture(LOD_COUNT as u32)
 }
 

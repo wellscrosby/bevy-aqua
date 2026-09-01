@@ -182,3 +182,17 @@ fn detail_mips_leave_constant_slopes_without_variance() {
     let second_moment = 2.0 * filtered[2] as f32 / 255.0;
     assert!((second_moment - mean.length_squared()).abs() < 0.015);
 }
+
+#[test]
+fn make_texture_includes_displacement_and_surface_layers() {
+    let image = make_texture();
+    assert_eq!(
+        image.texture_descriptor.size.depth_or_array_layers,
+        CASCADE_LAYER_COUNT
+    );
+    let scratch = make_lod_scratch();
+    assert_eq!(
+        scratch.texture_descriptor.size.depth_or_array_layers,
+        LOD_COUNT as u32
+    );
+}

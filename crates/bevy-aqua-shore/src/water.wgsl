@@ -2,7 +2,7 @@
 
 #define_import_path aqua::shore::water
 
-#import aqua::cascade::{bed_height, cascade_layout, caustics_sampler, caustics_texture, surface}
+#import aqua::cascade::{bed_height, cascade_layout, foam_pattern, foam_pattern_sampler, surface}
 
 // Decoded "no bed data" depth: matches a cleared full-depth capture texel.
 
@@ -86,8 +86,18 @@ fn caustic_bed_radiance(
     // Incommensurate scale and directions prevent the two layers from locking.
     let uv_a = world_xz / scale + vec2(scroll, 0.63 * scroll);
     let uv_b = world_xz * 1.37 / scale + vec2(-0.71 * scroll, 0.43 * scroll);
-    let a = textureSampleLevel(caustics_texture, caustics_sampler, uv_a, 0.0).r;
-    let b = textureSampleLevel(caustics_texture, caustics_sampler, uv_b, 0.0).r;
+    let a = textureSampleLevel(
+        foam_pattern,
+        foam_pattern_sampler,
+        uv_a,
+        0.0,
+    ).g;
+    let b = textureSampleLevel(
+        foam_pattern,
+        foam_pattern_sampler,
+        uv_b,
+        0.0,
+    ).g;
     let pattern = CAUSTIC_FOCUS_GAIN * a * b;
     let depth_gate = 1.0 - smoothstep(0.0, maximum_depth, water_depth);
     let direct_lux = dot(

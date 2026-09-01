@@ -26,3 +26,15 @@ fn state_texture_matches_the_generated_shader_contract() {
             .contains(TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING)
     );
 }
+
+#[test]
+fn pattern_texture_puts_caustics_in_green() {
+    let image = make_pattern_texture();
+    let data = image.data.as_ref().expect("pattern pixels");
+    let x = 20u32;
+    let y = 10u32;
+    let texel = 4 * (y * PATTERN_SIZE + x) as usize;
+    let point = Vec2::new(x as f32, y as f32) * CAUSTIC_CELL_COUNT as f32 / PATTERN_SIZE as f32;
+    let ridge = caustic_ridge(point);
+    assert_eq!(data[texel + 1], linear_to_srgb(ridge * ridge));
+}

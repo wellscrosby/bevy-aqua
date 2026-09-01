@@ -193,22 +193,16 @@ fn update_view(
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one-time assembly of Aqua's shared GPU material"
-)]
 fn lod_init(
     mut commands: Commands,
     bed: Option<Res<BedHeightMap>>,
     fallback: Res<bevy_aqua_core::GpuFallback>,
     sea_level: Res<ViewSeaLevel>,
     foam_textures: Res<bevy_aqua_foam::Textures>,
-    caustics: Res<bevy_aqua_shore::CausticsTexture>,
     mut images: ResMut<Assets<bevy::image::Image>>,
     mut materials: ResMut<Assets<CascadeMaterial>>,
 ) {
     let texture = images.add(bevy_aqua_core::cascade::make_texture());
-    let fft_surface = images.add(bevy_aqua_core::cascade::make_fft_surface_texture());
     let detail_normal = images.add(bevy_aqua_core::cascade::make_detail_normal_texture());
     let mut layout = bevy_aqua_core::GpuLayout::new(
         &bevy_aqua_core::cascade::layout(Vec2::ZERO),
@@ -227,15 +221,13 @@ fn lod_init(
         detail_normal,
         foam: foam_textures.surface.clone(),
         foam_pattern: foam_textures.pattern.clone(),
-        fft_surface: fft_surface.clone(),
         fields: params,
         field_maps: images.add(maps),
         reflection_a: fallback.0.clone(),
         reflection_b: fallback.0.clone(),
         reflections: bevy_aqua_core::PlanarReflectionParams::default(),
-        caustics: caustics.0.clone(),
     });
-    commands.insert_resource(Data::new(material, texture, fft_surface, layout));
+    commands.insert_resource(Data::new(material, texture, layout));
 }
 
 fn lod_update(

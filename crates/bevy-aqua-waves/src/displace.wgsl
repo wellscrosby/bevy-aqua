@@ -6,7 +6,7 @@
 
 #import bevy_pbr::mesh_view_bindings::globals
 
-#import aqua::cascade::{CREST_SSS_MAXIMUM, CREST_SSS_RANGE, MIN_NORMAL_Y, MIN_SAMPLE_WEIGHT, advected_world, cascade_layout, detail_normal, detail_sampler, fft_surface, flow_frame, lod_alpha, lod_count, lod_data, lod_sampler, screen_texture_lod, surface, world_to_uv}
+#import aqua::cascade::{CREST_SSS_MAXIMUM, CREST_SSS_RANGE, MIN_NORMAL_Y, MIN_SAMPLE_WEIGHT, advected_world, cascade_layout, detail_normal, detail_sampler, flow_frame, lod_alpha, lod_count, lod_data, lod_sampler, sample_fft_surface, screen_texture_lod, surface, world_to_uv}
 
 const NORMAL_DIRECTION_0: vec2<f32> = vec2(0.94, 0.34);
 const NORMAL_DIRECTION_1: vec2<f32> = vec2(-0.85, -0.53);
@@ -46,13 +46,7 @@ fn direct_displacement(world_xz: vec2<f32>, lod: u32) -> vec3<f32> {
 fn direct_fft_normal_cross(world_xz: vec2<f32>, lod: u32) -> vec3<f32> {
     let sampled_xz = advected_world(world_xz);
     let cascade = cascade_layout.cascades[lod];
-    return textureSampleLevel(
-        fft_surface,
-        lod_sampler,
-        world_to_uv(sampled_xz, cascade),
-        i32(lod),
-        0.0,
-    ).xyz;
+    return sample_fft_surface(world_to_uv(sampled_xz, cascade), lod).xyz;
 }
 
 fn sample_fft_normal_cross(world_xz: vec2<f32>, lod: u32, alpha: f32) -> vec3<f32> {
@@ -119,12 +113,9 @@ fn far_normal_cross(world_xz: vec2<f32>) -> vec3<f32> {
 fn displacement_jacobian(world_xz: vec2<f32>, lod: u32) -> f32 {
     if surface.reflection.x > 0.5 {
         let cascade = cascade_layout.cascades[lod];
-        return textureSampleLevel(
-            fft_surface,
-            lod_sampler,
+        return sample_fft_surface(
             world_to_uv(advected_world(world_xz), cascade),
-            i32(lod),
-            0.0,
+            lod,
         ).w;
     }
     let texel_width = cascade_layout.cascades[lod].texel_width;

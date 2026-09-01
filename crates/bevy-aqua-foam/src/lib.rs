@@ -147,7 +147,6 @@ pub fn init(mut commands: Commands, data: Res<lod::Data>, textures: Res<Textures
         state_b: textures.state_b.clone(),
         surface: textures.surface.clone(),
         waves: data.texture(),
-        wave_surface: data.fft_surface(),
         uniform: Uniform::new(layout.clone()),
         simulated_layout: layout,
     });
@@ -185,7 +184,6 @@ pub struct Frame {
     state_b: Handle<Image>,
     surface: Handle<Image>,
     waves: Handle<Image>,
-    wave_surface: Handle<Image>,
     uniform: Uniform,
     simulated_layout: lod::GpuLayout,
 }
@@ -258,6 +256,10 @@ pub(crate) fn make_state_texture() -> Image {
 const SOURCE_PATTERN_SIZE: u32 = 450;
 // Unity's `nPOTScale: ToNearest` imports Crest's 450px source at PATTERN_SIZE.
 const PATTERN_BYTES: &[u8] = include_bytes!("../assets/Foam2.png");
+// Sixteen cells delay tile repetition without increasing the neighbour search.
+const CAUSTIC_CELL_COUNT: i32 = 16;
+// Keeps cell borders narrow without losing them under bilinear filtering.
+const CAUSTIC_RIDGE_WIDTH: f32 = 0.16;
 
 fn srgb_to_linear(value: u8) -> f32 {
     let encoded = f32::from(value) / 255.0;
@@ -314,6 +316,44 @@ fn resize_srgb(source: &[u8], source_size: u32, target_size: u32) -> Vec<u8> {
         .collect()
 }
 
+fn caustic_feature(cell: IVec2) -> Vec2 {
+    let x = cell.x.rem_euclid(CAUSTIC_CELL_COUNT) as u32;
+    let y = cell.y.rem_euclid(CAUSTIC_CELL_COUNT) as u32;
+    // Fixed avalanche factors make the periodic texture deterministic.
+    let hash = x.wrapping_mul(0x9e37_79b9) ^ y.wrapping_mul(0x85eb_ca6b);
+    Vec2::new(
+        (hash.wrapping_mul(0x27d4_eb2d) & 0xffff) as f32 / 65_535.0,
+        (hash.rotate_left(13).wrapping_mul(0x1656_67b1) & 0xffff) as f32 / 65_535.0,
+    )
+}
+
+fn caustic_ridge(point: Vec2) -> f32 {
+    let cell = point.floor().as_ivec2();
+    let mut nearest = [f32::MAX; 2];
+    for oy in -1..=1 {
+        for ox in -1..=1 {
+            let neighbour = cell + IVec2::new(ox, oy);
+            let distance = point.distance(neighbour.as_vec2() + caustic_feature(neighbour));
+            if distance < nearest[0] {
+                nearest = [distance, nearest[0]];
+            } else if distance < nearest[1] {
+                nearest[1] = distance;
+            }
+        }
+    }
+    (1.0 - (nearest[1] - nearest[0]) / CAUSTIC_RIDGE_WIDTH).clamp(0.0, 1.0)
+}
+
+fn write_caustics_green(pixels: &mut [u8], size: u32) {
+    for y in 0..size {
+        for x in 0..size {
+            let point = Vec2::new(x as f32, y as f32) * CAUSTIC_CELL_COUNT as f32 / size as f32;
+            let ridge = caustic_ridge(point);
+            pixels[4 * (y * size + x) as usize + 1] = linear_to_srgb(ridge * ridge);
+        }
+    }
+}
+
 fn make_pattern_texture() -> Image {
     let sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
         address_mode_u: ImageAddressMode::Repeat,
@@ -346,6 +386,7 @@ fn make_pattern_texture() -> Image {
     let mut levels = Vec::new();
     let mut size = PATTERN_SIZE;
     let mut level = resize_srgb(&source, SOURCE_PATTERN_SIZE, PATTERN_SIZE);
+    write_caustics_green(&mut level, PATTERN_SIZE);
     loop {
         levels.extend_from_slice(&level);
         if size == 1 {

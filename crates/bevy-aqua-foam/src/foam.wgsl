@@ -39,7 +39,6 @@ struct FoamUniform {
 @group(0) @binding(4) var bed_height: texture_2d<f32>;
 @group(0) @binding(5) var target_foam: texture_storage_2d_array<rgba16float, write>;
 @group(0) @binding(6) var<uniform> foam: FoamUniform;
-@group(0) @binding(7) var fft_surface: texture_2d_array<f32>;
 
 fn world_to_uv(world_xz: vec2<f32>, cascade: CascadeParams) -> vec2<f32> {
     let coverage = cascade.texel_width * cascade.texture_res;
@@ -98,10 +97,10 @@ fn jacobian_foam_source(
 ) -> f32 {
     if foam.step.z != 0u {
         let determinant = textureSampleLevel(
-            fft_surface,
+            anim_waves,
             waves_sampler,
             world_to_uv(world_xz, cascade),
-            i32(slice),
+            i32(slice + FOAM_LOD_COUNT),
             0.0,
         ).w;
         return clamp(foam.wave.w - determinant, 0.0, 1.0);

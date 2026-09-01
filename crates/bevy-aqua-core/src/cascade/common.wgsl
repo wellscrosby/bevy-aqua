@@ -144,7 +144,6 @@ struct BodyParams {
 @group(#{MATERIAL_BIND_GROUP}) @binding(8) var foam_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(9) var foam_pattern: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(10) var foam_pattern_sampler: sampler;
-@group(#{MATERIAL_BIND_GROUP}) @binding(11) var fft_surface: texture_2d_array<f32>;
 /// Global water fields: region mapping, per-slot body parameters, and the
 /// baked level/slot + flow textures. Mirrors fields::FieldParams.
 const MAX_BODIES: u32 = 16u;
@@ -165,9 +164,6 @@ struct FieldParams {
 @group(#{MATERIAL_BIND_GROUP}) @binding(20) var reflection_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(21) var reflection_b: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(22) var<uniform> planar_reflections: PlanarReflectionParams;
-
-@group(#{MATERIAL_BIND_GROUP}) @binding(23) var caustics_texture: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(24) var caustics_sampler: sampler;
 
 fn sample_planar_reflection(
     world_position: vec3<f32>,
@@ -481,6 +477,16 @@ fn sample_displacement(
             * textureSampleLevel(lod_data, lod_sampler, uv, i32(lod + 1u), 0.0).xyz;
     }
     return displacement;
+}
+
+fn sample_fft_surface(uv: vec2<f32>, lod: u32) -> vec4<f32> {
+    return textureSampleLevel(
+        lod_data,
+        lod_sampler,
+        uv,
+        i32(lod) + i32(lod_count()),
+        0.0,
+    );
 }
 
 fn flow_frame(world_xz: vec2<f32>) -> vec2<f32> {

@@ -39,8 +39,8 @@ pub use body::{ResolvedWaterBodies, ResolvedWaterBody, WaterBodyTransformError};
 pub use cascade::{
     BodyOptics, BodyParams, CascadeMaterial, Data, GpuCascade, GpuLayout, LOD_COUNT,
     PlanarReflectionParams, PlanarReflectionView, RESOLUTION, SurfaceParams, TILE_RESOLUTION,
-    UpdateInputs, layout, lod_scale, make_detail_normal_texture, make_fft_surface_texture,
-    make_texture, update as update_cascade_material,
+    UpdateInputs, layout, lod_scale, make_detail_normal_texture, make_lod_scratch, make_texture,
+    update as update_cascade_material,
 };
 #[doc(hidden)]
 pub use view::projected_detail_lod;
