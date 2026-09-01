@@ -14,7 +14,7 @@
 #import aqua::foam::shade::{sample_foam_density}
 #import aqua::shore::water::{blended_water_depth, caustic_bed_radiance}
 #import aqua::light::incident::{GODOT_NORMAL_FADE_RATE, GODOT_NORMAL_MINIMUM_STRENGTH, GODOT_SSS_MODIFIER, GODOT_WATER_ALBEDO, LUMINANCE_WEIGHTS, filtered_primary_light_color, ggx_distribution, safe_normalize, sample_environment, smith_masking_shadowing, strongest_incident_directional_light}
-#import bevy_aqua_core::material::{CameraDepthDebug, CameraDepthPath, FoamState, MediumState, NearSurface, PrimaryLightState, SurfaceVertexOutput, TransmissionState}
+#import bevy_aqua_core::material::{CameraDepthPath, FoamState, MediumState, NearSurface, PrimaryLightState, SurfaceVertexOutput, TransmissionSample, TransmissionState}
 
 // A 2^-10 residual in the least-attenuated channel bounds body error to
 // 0.0977% of scene/scatter contrast before Fresnel. At Crest's shipped minimum
@@ -206,11 +206,18 @@ fn camera_eye_distance(uv: vec2<f32>, raw_depth: f32) -> f32 {
     return length(eye);
 }
 
+fn reconstruct_world_from_uv(uv: vec2<f32>, raw_depth: f32) -> vec3<f32> {
+    let ndc = vec3(uv * vec2(2.0, -2.0) + vec2(-1.0, 1.0), raw_depth);
+    let world = view.world_from_clip * vec4(ndc, 1.0);
+    return world.xyz / max(world.w, LUMINANCE_EPSILON);
+}
+
 fn empty_camera_depth_path() -> CameraDepthPath {
     var result: CameraDepthPath;
     result.path_length = 0.0;
     result.screen_uv = vec2(0.0);
     result.scene_z = 0.0;
+    result.hit_y = 0.0;
     result.has_background = false;
     return result;
 }
@@ -231,40 +238,52 @@ fn camera_depth_path(in: SurfaceVertexOutput) -> CameraDepthPath {
     let scene_distance = camera_eye_distance(result.screen_uv, scene_raw_depth);
     let surface_distance = length(in.world_position.xyz - view.world_position.xyz);
     result.path_length = max(scene_distance - surface_distance, 0.0);
+    if result.has_background {
+        result.hit_y = reconstruct_world_from_uv(result.screen_uv, scene_raw_depth).y;
+    }
 #endif
     return result;
 }
 
-// Reimplementation of Crest `OceanEmission.hlsl:195-242`. Opaque camera depth,
-// never SeaFloorDepth LodData, is the Euclidean water path. A valid refracted
-// sample supplies both the colour UV and that path; a sample in front of the
-// water cancels the offset. The unrefracted path only scales the warp.
-fn camera_depth_debug_from_path(
+// Crest `OceanEmission.hlsl:195-242`. Opaque camera depth, never SeaFloorDepth,
+// is the Euclidean water path. A valid refracted sample supplies the colour UV,
+// that path, and the hit height; a sample in front of the water cancels the
+// offset. The unrefracted path only scales the warp.
+fn resolve_transmission_sample(
     in: SurfaceVertexOutput,
     normal: vec3<f32>,
     path: CameraDepthPath,
-) -> CameraDepthDebug {
-    var result: CameraDepthDebug;
+    allow_refraction: bool,
+) -> TransmissionSample {
+    var result: TransmissionSample;
+    result.uv = path.screen_uv;
     result.path_length = path.path_length;
-    result.screen_uv = path.screen_uv;
-    result.refracted_uv = path.screen_uv;
-    result.refracted_sample_valid = false;
+    result.hit_y = path.hit_y;
     result.has_background = path.has_background;
+    result.refraction_valid = false;
 #ifdef DEPTH_PREPASS
-    let shallow_gap = min(1.0, 0.5 * path.path_length);
-    let refract_offset = surface.debug.y * normal.xz
-        * shallow_gap / max(path.scene_z, LUMINANCE_EPSILON);
-    result.refracted_uv = clamp(path.screen_uv + refract_offset, vec2(0.0), vec2(1.0));
-    let refracted_pixel = result.refracted_uv * (view.viewport.zw - vec2(1.0))
-        + view.viewport.xy;
-    let refracted_position = vec4(refracted_pixel, in.position.zw);
-    let refracted_raw_depth = prepass_utils::prepass_depth(refracted_position, 0u);
-    result.refracted_sample_valid = refracted_raw_depth < in.position.z;
-    if result.refracted_sample_valid {
-        let surface_distance = length(in.world_position.xyz - view.world_position.xyz);
-        let scene_distance = camera_eye_distance(result.refracted_uv, refracted_raw_depth);
-        result.path_length = max(scene_distance - surface_distance, 0.0);
-        result.has_background = refracted_raw_depth > 0.0;
+    if allow_refraction {
+        let shallow_gap = min(1.0, 0.5 * path.path_length);
+        let refract_offset = surface.debug.y * normal.xz
+            * shallow_gap / max(path.scene_z, LUMINANCE_EPSILON);
+        let refracted_uv = clamp(path.screen_uv + refract_offset, vec2(0.0), vec2(1.0));
+        let refracted_pixel = refracted_uv * (view.viewport.zw - vec2(1.0))
+            + view.viewport.xy;
+        let refracted_position = vec4(refracted_pixel, in.position.zw);
+        let refracted_raw_depth = prepass_utils::prepass_depth(refracted_position, 0u);
+        result.refraction_valid = refracted_raw_depth < in.position.z;
+        if result.refraction_valid {
+            result.uv = refracted_uv;
+            let surface_distance = length(in.world_position.xyz - view.world_position.xyz);
+            let scene_distance = camera_eye_distance(refracted_uv, refracted_raw_depth);
+            result.path_length = max(scene_distance - surface_distance, 0.0);
+            result.has_background = refracted_raw_depth > 0.0;
+            if result.has_background {
+                result.hit_y = reconstruct_world_from_uv(refracted_uv, refracted_raw_depth).y;
+            } else {
+                result.hit_y = 0.0;
+            }
+        }
     }
 #endif
     return result;
@@ -360,26 +379,19 @@ fn sample_water_medium(
 fn transmitted_scene(
     uv: vec2<f32>,
     surface_y: f32,
+    hit_y: f32,
+    has_hit: bool,
 ) -> vec3<f32> {
     let scene = opaque_background(uv);
-#ifdef DEPTH_PREPASS
-    let viewport_origin = view.viewport.xy;
-    let viewport_size = view.viewport.zw;
-    let pixel = uv * (viewport_size - vec2(1.0)) + viewport_origin;
-    let raw_depth = prepass_utils::prepass_depth(vec4(pixel, 0.0, 1.0), 0u);
-    if raw_depth <= 0.0 {
+    if !has_hit {
         return scene;
     }
-    let hit = reconstruct_world_from_uv(uv, raw_depth);
     return attenuate_underwater_scene(
         scene,
-        hit.y,
+        hit_y,
         surface_y,
         invocation_extinction(),
     );
-#else
-    return scene;
-#endif
 }
 
 fn illuminate_bed(
@@ -407,6 +419,23 @@ fn illuminate_bed(
     );
 }
 
+fn transmitted_body(
+    in: SurfaceVertexOutput,
+    medium: MediumState,
+    primary: PrimaryLightState,
+    to_view: vec3<f32>,
+    sample: TransmissionSample,
+) -> vec3<f32> {
+    let scene_colour = transmitted_scene(
+        sample.uv,
+        in.world_position.y,
+        sample.hit_y,
+        sample.has_background,
+    );
+    let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
+    return surface_medium_radiance(lit_scene, to_view, sample.path_length);
+}
+
 fn resolve_transmission(
     in: SurfaceVertexOutput,
     normal: vec3<f32>,
@@ -418,71 +447,46 @@ fn resolve_transmission(
 ) -> TransmissionState {
     var body = surface_medium_radiance(vec3(0.0), to_view, PATH_LENGTH_MAX);
     var shared_depth_path = foam.depth_path;
-    var has_shared_depth_path = foam.has_depth_path;
-    if mode >= DEBUG_MODE_WATER_PATH && mode <= DEBUG_MODE_SEA_FLOOR {
-        // Diagnostic transmission modes preserve the complete sampling path.
-        if !has_shared_depth_path {
+    if (mode >= DEBUG_MODE_WATER_PATH && mode <= DEBUG_MODE_BEER_LAMBERT)
+        || mode == DEBUG_MODE_BEAUTY {
+        if !foam.has_depth_path {
             shared_depth_path = camera_depth_path(in);
-            has_shared_depth_path = true;
         }
-        let depth_debug = camera_depth_debug_from_path(in, normal, shared_depth_path);
+        let sample = resolve_transmission_sample(
+            in,
+            normal,
+            shared_depth_path,
+            mode != DEBUG_MODE_UNREFRACTED,
+        );
         if mode == DEBUG_MODE_WATER_PATH {
-            let path = clamp(depth_debug.path_length / surface.debug.z, 0.0, 1.0);
+            let path = clamp(sample.path_length / surface.debug.z, 0.0, 1.0);
             return TransmissionState(body, vec4(vec3(path), 1.0), true);
         }
         if mode == DEBUG_MODE_REFRACTION_VALIDITY {
             let output = select(
                 vec4(1.0, 0.0, 0.0, 1.0),
                 vec4(0.0, 1.0, 0.0, 1.0),
-                depth_debug.refracted_sample_valid,
+                sample.refraction_valid,
             );
             return TransmissionState(body, output, true);
         }
-        let refraction_enabled = mode == DEBUG_MODE_TRANSMISSION
-            || mode == DEBUG_MODE_BEER_LAMBERT
-            || mode == DEBUG_MODE_SEA_FLOOR;
-        let use_refraction = refraction_enabled
-            && depth_debug.refracted_sample_valid;
-        let background_uv = select(
-            depth_debug.screen_uv,
-            depth_debug.refracted_uv,
-            use_refraction,
-        );
-        let scene_colour = transmitted_scene(background_uv, in.world_position.y);
         if mode == DEBUG_MODE_TRANSMISSION || mode == DEBUG_MODE_UNREFRACTED {
-            return TransmissionState(body, vec4(opaque_background(background_uv), 1.0), true);
+            return TransmissionState(body, vec4(opaque_background(sample.uv), 1.0), true);
         }
-
-        let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
-        body = surface_medium_radiance(lit_scene, to_view, depth_debug.path_length);
-        if mode == DEBUG_MODE_BEER_LAMBERT {
+        if mode != DEBUG_MODE_BEAUTY {
+            body = transmitted_body(in, medium, primary, to_view, sample);
             return TransmissionState(body, vec4(body, 1.0), true);
         }
-    } else if mode == DEBUG_MODE_BEAUTY {
-        if !has_shared_depth_path {
-            shared_depth_path = camera_depth_path(in);
-            has_shared_depth_path = true;
-        }
-        let depth_path = shared_depth_path;
-        let depth_debug = camera_depth_debug_from_path(in, normal, depth_path);
-        let use_refraction = depth_debug.refracted_sample_valid;
-        let background_uv = select(
-            depth_debug.screen_uv,
-            depth_debug.refracted_uv,
-            use_refraction,
-        );
-        let fog_path = depth_debug.path_length;
         let extinction = invocation_extinction();
         let minimum_extinction = min(extinction.r, min(extinction.g, extinction.b));
-        let optical_depth = minimum_extinction * fog_path;
-        if depth_path.has_background
-            && fog_path > LUMINANCE_EPSILON
+        let optical_depth = minimum_extinction * sample.path_length;
+        if sample.has_background
+            && sample.path_length > LUMINANCE_EPSILON
             && optical_depth < TRANSMISSION_OPAQUE_OPTICAL_DEPTH {
-            let scene_colour = transmitted_scene(background_uv, in.world_position.y);
-            let lit_scene = illuminate_bed(scene_colour, in, medium, primary);
-            body = surface_medium_radiance(lit_scene, to_view, fog_path);
-        } else if depth_path.has_background && fog_path > LUMINANCE_EPSILON {
-            body = surface_medium_radiance(vec3(0.0), to_view, fog_path);
+            body = transmitted_body(in, medium, primary, to_view, sample);
+        } else if sample.has_background
+            && sample.path_length > LUMINANCE_EPSILON {
+            body = surface_medium_radiance(vec3(0.0), to_view, sample.path_length);
         }
     }
     return TransmissionState(body, vec4(0.0), false);
@@ -494,12 +498,6 @@ const TIR_SSR_STEPS: u32 = 24u;
 const TIR_SSR_STEP: f32 = 1.0;
 const TIR_SSR_START: f32 = 0.3;
 const TIR_SSR_THICKNESS: f32 = 2.0;
-
-fn reconstruct_world_from_uv(uv: vec2<f32>, raw_depth: f32) -> vec3<f32> {
-    let ndc = vec3(uv * vec2(2.0, -2.0) + vec2(-1.0, 1.0), raw_depth);
-    let world = view.world_from_clip * vec4(ndc, 1.0);
-    return world.xyz / max(world.w, LUMINANCE_EPSILON);
-}
 
 fn underside_bounce_radiance(
     origin: vec3<f32>,

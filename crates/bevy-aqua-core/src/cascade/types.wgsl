@@ -16,15 +16,16 @@ struct CameraDepthPath {
     path_length: f32,
     screen_uv: vec2<f32>,
     scene_z: f32,
+    hit_y: f32,
     has_background: bool,
 }
 
-struct CameraDepthDebug {
+struct TransmissionSample {
+    uv: vec2<f32>,
     path_length: f32,
-    screen_uv: vec2<f32>,
-    refracted_uv: vec2<f32>,
-    refracted_sample_valid: bool,
+    hit_y: f32,
     has_background: bool,
+    refraction_valid: bool,
 }
 
 struct NearSurface {
