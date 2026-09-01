@@ -24,7 +24,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- Surface body fog uses the Euclidean camera-ray path through the water, matching the unrefracted transmission sample. Snell no longer shortens that path, so a shallow object seen from above veils over distance the same way it does from just below.
+- Surface body fog uses the Euclidean camera-ray path through the water, matching the transmission sample. A valid refracted sample supplies both colour and path; a sample in front of the water cancels the offset. Snell no longer shortens that path, so a shallow object seen from above veils over distance the same way it does from just below.
 - Underwater volume composite keeps cascade underside colour instead of zeroing hits near the mean plane.
 
 ## [0.1.3] - 2026-08-30
