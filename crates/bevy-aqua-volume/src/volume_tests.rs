@@ -70,8 +70,7 @@ fn ocean_camera_switches_on_mean_plane() {
         ..default()
     };
     assert!(sample_medium(Vec3::new(0.0, 20.0, 0.0), Some(&ocean), &settings, &[]).is_none());
-    let under =
-        sample_medium(Vec3::new(4.0, -3.0, 1.0), Some(&ocean), &settings, &[]).unwrap();
+    let under = sample_medium(Vec3::new(4.0, -3.0, 1.0), Some(&ocean), &settings, &[]).unwrap();
     assert_eq!(under.0, -2.0);
     assert_eq!(under.1, WaterOptics::DEEP_OCEAN);
     assert!(under.2);
@@ -111,12 +110,7 @@ fn pond_wins_over_ocean_when_the_camera_is_inside() {
     assert_eq!(inside.1, WaterOptics::CLEAR_FRESH);
     assert!(!inside.2);
 
-    let beside = sample_medium(
-        Vec3::new(0.0, 20.0, 0.0),
-        Some(&ocean),
-        &settings,
-        &[pond],
-    );
+    let beside = sample_medium(Vec3::new(0.0, 20.0, 0.0), Some(&ocean), &settings, &[pond]);
     assert!(beside.is_none());
 }
 
@@ -125,13 +119,8 @@ fn camera_below_ocean_outside_a_raised_pond_uses_the_ocean() {
     let ocean = Ocean { level: 0.0 };
     let settings = AquaSettings::default();
     let pond = circle_body(8.0, Vec2::ZERO, 3.0, Some(WaterOptics::CLEAR_FRESH));
-    let under = sample_medium(
-        Vec3::new(20.0, -1.0, 0.0),
-        Some(&ocean),
-        &settings,
-        &[pond],
-    )
-    .unwrap();
+    let under =
+        sample_medium(Vec3::new(20.0, -1.0, 0.0), Some(&ocean), &settings, &[pond]).unwrap();
     assert_eq!(under.0, 0.0);
     assert_eq!(under.1, WaterOptics::DEEP_OCEAN);
     assert!(under.2);

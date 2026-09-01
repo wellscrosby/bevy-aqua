@@ -186,6 +186,7 @@ source code.
 | `water_optics` | Water appearance presets shown side by side | <img src="docs/images/examples/water_optics.jpg" alt="water_optics example" width="220"> |
 | `planar_reflection` | Planar reflection of marked scene geometry | <img src="docs/images/examples/planar_reflection.jpg" alt="planar_reflection example" width="220"> |
 | `wave_query` | GPU surface queries driving a procedural buoy | <img src="docs/images/examples/wave_query.jpg" alt="wave_query example" width="220"> |
+| `underwater` | Open ocean from 20 m down, looking toward the sun | <img src="docs/images/examples/underwater.jpg" alt="underwater example" width="220"> |
 
 Run any scene natively:
 

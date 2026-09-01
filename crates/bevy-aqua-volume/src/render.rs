@@ -48,10 +48,7 @@ pub(super) fn add(app: &mut App) {
     };
     render
         .init_gpu_resource::<SpecializedRenderPipelines<VolumePipeline>>()
-        .add_systems(
-            RenderStartup,
-            init_pipeline.after(MeshPipelineSystems),
-        )
+        .add_systems(RenderStartup, init_pipeline.after(MeshPipelineSystems))
         .add_systems(
             Render,
             (

@@ -11,9 +11,9 @@ use bevy::{
     pbr::{MaterialPipeline, MaterialPipelineKey},
     prelude::*,
     render::render_resource::{
-        AsBindGroup, Extent3d, RenderPipelineDescriptor, ShaderType,
-        SpecializedMeshPipelineError, TextureDimension, TextureFormat, TextureUsages,
-        TextureViewDescriptor, TextureViewDimension,
+        AsBindGroup, Extent3d, RenderPipelineDescriptor, ShaderType, SpecializedMeshPipelineError,
+        TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor,
+        TextureViewDimension,
     },
     shader::ShaderRef,
 };

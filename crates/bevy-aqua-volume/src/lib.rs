@@ -52,10 +52,7 @@ impl Plugin for AquaVolumePlugin {
         embedded_asset!(app, "volume.wgsl");
         app.init_resource::<ExtractedVolume>()
             .add_plugins(ExtractResourcePlugin::<ExtractedVolume>::default())
-            .add_systems(
-                PostUpdate,
-                detect_underwater.after(WaterBodiesResolved),
-            );
+            .add_systems(PostUpdate, detect_underwater.after(WaterBodiesResolved));
         render::add(app);
     }
 }
@@ -105,8 +102,7 @@ pub(crate) fn sample_medium(
         return Some((level, optics, false));
     }
     let ocean = ocean?;
-    (camera.y < ocean.level + SURFACE_MARGIN)
-        .then_some((ocean.level, settings.water_optics, true))
+    (camera.y < ocean.level + SURFACE_MARGIN).then_some((ocean.level, settings.water_optics, true))
 }
 
 fn detect_underwater(
