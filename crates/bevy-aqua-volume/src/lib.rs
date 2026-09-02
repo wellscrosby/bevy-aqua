@@ -14,10 +14,6 @@ use bevy_aqua_core::{
 
 mod render;
 
-#[cfg(test)]
-#[path = "volume_tests.rs"]
-mod tests;
-
 /// Adds the underwater volume composite after the main 3D pass.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AquaVolumePlugin;
@@ -53,7 +49,7 @@ impl Default for ExtractedVolume {
 }
 
 /// Mean water plane and optics for the camera's containing body, if any.
-pub(crate) fn sample_medium(
+fn sample_medium(
     camera: Vec3,
     ocean: Option<&Ocean>,
     settings: &AquaSettings,

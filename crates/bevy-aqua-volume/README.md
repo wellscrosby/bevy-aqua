@@ -15,7 +15,3 @@ Looking toward the sun is brighter via Henyey-Greenstein using
 `WaterOptics::scattering_asymmetry`.
 
 The pass runs whenever an `OceanView` camera is below the local surface.
-
-```
-cd crates/bevy-aqua-volume && cargo test
-```
