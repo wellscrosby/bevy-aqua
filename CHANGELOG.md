@@ -10,22 +10,13 @@ All notable changes to this project are documented here. The format follows [Kee
   through every `AquaDebug` diagnostic mode.
 - An `underwater` example: open ocean, camera 20 m below the surface, looking
   toward an angled sun through Bevy's earth atmosphere.
-- Cascade underside shading: water-to-air interface when looking up from below. Snell's window is air radiance times n² times Fresnel transmittance; TIR and the reflected lobe are the medium integral along the bounce, with a screen-space depth march for on-screen underwater geometry.
-- Underwater volume pass: closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, particle Henyey-Greenstein plus molecular Rayleigh) when the camera is below the local surface. Particle scatter is a weak coefficient times `scatter_scale` and `scatter_tint`, not a copy of extinction. Henyey-Greenstein `g` is `WaterOptics::scattering_asymmetry`. Opaque scene colour is scaled by the surface-to-hit sun path from the depth buffer, so a 50 m mesh in deep-ocean optics is barely lit and blue-green without a special material.
-- `WaterOptics::scatter_tint` authors particle-haze chromaticity for the shared medium. Presets keep the shipped weakly-blue spectrum `(0.85, 1, 1.22)`.
+- Underside surface shading: water-to-air interface when looking up from below. Models Snell's window, Fresnel transmittance, and TIR (screen-space depth march).
+- Underwater volume shading: closed-form RGB Beer-Lambert transmittance and directional downwelling (Snell, Fresnel, particle Henyey-Greenstein plus molecular Rayleigh). Underwater object lighting is attenuated with a screen space effect using the depth buffer and water level.
 
 ### Changed
 
-- Medium in-scatter comes only from directional lights. The vertical sky downwelling lobe is gone.
-- Medium in-scatter is a normalized mix of particle Henyey-Greenstein and molecular Rayleigh. The isotropic `SUN_BODY` phase gain is gone. `WaterOptics` presets use beam extinction near Pope-Fry absorption plus scatter.
-- Cascade surface shading uses the same `aqua::medium` integral as the underwater pass, converted to water-leaving radiance along the camera ray that sampled transmission (in-water radiance / n²). The water body is no longer lit as Lambert plastic; foam, Fresnel, and crest SSS stay on the mesh.
-- `WaterOptics` now includes Henyey-Greenstein `scattering_asymmetry`. `WaterVolume` and `AquaSettings::volume` are removed; the underwater pass is no longer optional, and the old `inscatter` gain is gone.
-- `WaterOptics` no longer carries unused Crest body paints (`deep_color`, `grazing_color`, `shallow_color`). Far-tier water is treated as deep below 7 m.
-
-### Fixed
-
-- Surface body fog uses the Euclidean camera-ray path through the water, matching the transmission sample. A valid refracted sample supplies both colour and path; a sample in front of the water cancels the offset. Snell no longer shortens that path, so a shallow object seen from above veils over distance the same way it does from just below.
-- Underwater volume composite keeps cascade underside colour instead of zeroing hits near the mean plane.
+- Above water volume shading uses the same `aqua::medium` integral as the underwater pass.
+- Further texture binding consolidation (limit of 16 was being hit again with more fully featured test).
 
 ## [0.1.3] - 2026-08-30
 
