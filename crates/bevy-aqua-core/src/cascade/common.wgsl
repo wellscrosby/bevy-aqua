@@ -24,8 +24,7 @@
 #import bevy_aqua_core::waves_sample::{
     CascadeLayout,
     CascadeParams,
-    lod_alpha as blend_lod_alpha,
-    sample_displacement as blend_sample_displacement,
+    lod_alpha,
 }
 
 const VERTEX_SNAP_MULTIPLIER: f32 = 2.0;
@@ -346,6 +345,11 @@ fn invocation_ripple() -> f32 {
 }
 
 
+// Wave content advects at `surface.advection.xy` metres per second. A
+// sampling-space shift is exact Doppler advection for both spectra:
+// sampling at `x - u * t` turns every component's phase into
+// `(k . x) - (omega + k . u) * t`. Snap/transition, depth lookups, and foam
+// gating stay world-anchored.
 fn advected_world(world_xz: vec2<f32>) -> vec2<f32> {
     return world_xz - effective_flow * effective_time;
 }
@@ -393,10 +397,6 @@ fn far_tier_weight(base_world_position: vec3<f32>) -> f32 {
     );
 }
 
-fn lod_alpha(world_xz: vec2<f32>, cascade: CascadeParams) -> f32 {
-    return blend_lod_alpha(world_xz, cascade, cascade_layout);
-}
-
 fn snap_and_transition(
     world_xz: vec2<f32>,
     object_xz: vec2<f32>,
@@ -405,7 +405,7 @@ fn snap_and_transition(
     let grid_width = cascade.texel_width;
     let snap_width = VERTEX_SNAP_MULTIPLIER * grid_width;
     var transitioned = world_xz - fract(object_xz / snap_width) * snap_width;
-    let alpha = lod_alpha(transitioned, cascade);
+    let alpha = lod_alpha(transitioned, cascade, cascade_layout);
 
     let coarse_grid = COARSE_GRID_MULTIPLIER * grid_width;
     let offset = fract(transitioned / coarse_grid) - vec2(GRID_CELL_CENTER);
@@ -416,36 +416,6 @@ fn snap_and_transition(
         transitioned.y += offset.y * alpha * coarse_grid;
     }
     return vec3(transitioned, alpha);
-}
-
-// Wave content advects at `surface.advection.xy` metres per second. A
-// sampling-space shift is exact Doppler advection for both spectra:
-// sampling at `x - u * t` turns every component's phase into
-// `(k . x) - (omega + k . u) * t`. Snap/transition, depth lookups, and foam
-// gating stay world-anchored.
-fn sample_displacement(
-    world_xz: vec2<f32>,
-    lod: u32,
-    alpha: f32,
-) -> vec3<f32> {
-    return blend_sample_displacement(
-        lod_data,
-        lod_sampler,
-        cascade_layout,
-        advected_world(world_xz),
-        lod,
-        alpha,
-    );
-}
-
-fn sample_fft_surface(uv: vec2<f32>, lod: u32) -> vec4<f32> {
-    return textureSampleLevel(
-        lod_data,
-        lod_sampler,
-        uv,
-        i32(lod) + i32(lod_count()),
-        0.0,
-    );
 }
 
 fn flow_frame(world_xz: vec2<f32>) -> vec2<f32> {

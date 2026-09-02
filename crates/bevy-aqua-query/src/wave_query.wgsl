@@ -32,14 +32,6 @@ struct QueryResult {
 @group(0) @binding(3) var<storage, read> requests: array<QueryRequest>;
 @group(0) @binding(4) var<storage, read_write> results: array<QueryResult>;
 
-fn river_surface(world_xz: vec2<f32>, request: QueryRequest) -> vec3<f32> {
-    return river_analytic_displacement(
-        world_xz,
-        request.flow,
-        params.time.x,
-    );
-}
-
 @compute @workgroup_size(64u)
 fn sample(@builtin(global_invocation_id) id: vec3<u32>) {
     let index = id.x;
@@ -50,7 +42,11 @@ fn sample(@builtin(global_invocation_id) id: vec3<u32>) {
     let request = requests[index];
 
     if request.flow.w > 0.0 {
-        let analytic = river_surface(request.world_xz, request);
+        let analytic = river_analytic_displacement(
+            request.world_xz,
+            request.flow,
+            params.time.x,
+        );
         // Central differences of the same closed form for the normal.
         let epsilon = 0.35;
         let height_x = river_analytic_displacement(
