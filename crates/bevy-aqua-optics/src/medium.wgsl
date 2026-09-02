@@ -1,12 +1,9 @@
 // Closed-form water medium: RGB Beer-Lambert transmittance and in-scatter
-// from directional downwelling. Scatter is particle Henyey-Greenstein plus
-// molecular Rayleigh, mixed per channel so the phase integrates to 1 sr⁻¹.
+// from directional downwelling.
 // The underwater pass evaluates this in water. The cascade surface converts
 // the same integral to air as water-leaving radiance along the camera ray
-// that sampled transmission (in-water radiance / n²). That ray is not
-// Snell-bent: the opaque buffer is not. Opaque colour is scaled by the
-// surface-to-hit sun path (`mesh_incident_transmittance`) before that
-// camera-path integral.
+// that sampled transmission. Opaque colour is scaled by the
+// surface-to-hit sun path before the camera-path integral.
 
 #define_import_path aqua::medium
 

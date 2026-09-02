@@ -14,8 +14,8 @@ bodies, and GPU surface queries.
 
 - Five camera-centred displacement cascades with smooth LOD blending.
 - Crest-style analytic waves or Tessendorf spectral waves.
-- Beer-Lambert transmission, refraction, reflections, scene lighting, and
-  underwater mesh incident lighting.
+- Beer-Lambert transmission, refraction, reflections, and scene lighting.
+- Underwater volume and water surface shading.
 - Persistent whitecaps and shoreline foam.
 - Static terrain heightfields for shoaling and shallow-water optics.
 - Bounded ponds, lakes, and river corridors with per-body optics.
@@ -96,11 +96,7 @@ data; set them before the plugin starts.
 `0..=2`. `WaterOptics::DEEP_OCEAN` is the default. Coastal, tropical, and
 clear-fresh presets are also provided. Extinction, particle scatter scale
 and tint, molecular Rayleigh, and Henyey-Greenstein `scattering_asymmetry`
-live on that optics profile. When
-the camera is below the local surface, a fullscreen volume pass applies the
-same medium. Opaque colour in that medium is scaled by the surface-to-hit
-sun path from the depth buffer, so underwater meshes go dark and blue-green
-without a special material. `far_tier_start` and `far_tier_end`
+live on that optics profile. `far_tier_start` and `far_tier_end`
 bound the reduced-cost shading transition in metres. Far shading keeps sun
 and reflections while omitting depth, foam, and sampled subsurface detail.
 `reflections` selects the default planar mirror views or the byte-compatible cubemap-only path. Mark terrain or a

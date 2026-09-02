@@ -1,9 +1,5 @@
 // Cascade layout ABI and LOD displacement blend. Wave producers, foam
 // simulation, and GPU query import this module.
-// The cascade material wraps `sample_displacement` so advection stays on
-// that caller. Layout must stay aligned with `bevy_aqua_core::AnimWavesUniform`.
-//
-// Callers apply flow advection to `world_xz` before sampling.
 
 #define_import_path bevy_aqua_core::waves_sample
 

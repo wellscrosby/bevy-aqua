@@ -1,29 +1,4 @@
 //! Underwater volume composite for Aqua.
-//!
-//! When the camera sits below the local water surface, a fullscreen Core3d
-//! pass applies RGB Beer-Lambert transmittance and closed-form in-scatter
-//! along the underwater segment. Empty far-plane pixels integrate a bounded
-//! path through the water instead of reconstructing the far clip as the path
-//! end. Extinction is absorption plus scatter. Particle scatter is a weak
-//! coefficient times [`WaterOptics::scatter_scale`] and
-//! [`WaterOptics::scatter_tint`], plus molecular Rayleigh, clamped below `σt`,
-//! so red dies instead of glowing.
-//! In-scatter colour is the downwelling light after a normalized mix of
-//! particle Henyey-Greenstein and Rayleigh. The cascade surface converts
-//! the same integral to air as water-leaving radiance along the camera ray
-//! that sampled transmission (in-water radiance / n²).
-//!
-//! Each directional light is refracted at the surface (Snell, Fresnel) and
-//! then attenuated along `depth / L.y`, so a lower sun dies faster with
-//! depth. Looking toward the sun is brighter via Henyey-Greenstein using
-//! [`WaterOptics::scattering_asymmetry`]. `VolumetricLight` is not used.
-//!
-//! Opaque scene colour is scaled by that same surface-to-hit sun path before
-//! the camera-path integral, from the depth buffer. Meshes do not opt in.
-//!
-//! The cascade mesh writes the water-to-air interface on back faces. This
-//! pass integrates camera-to-hit, or to the mean plane on empty upward
-//! pixels. Camera height and the mean water plane are uniforms.
 
 #![warn(unreachable_pub)]
 
