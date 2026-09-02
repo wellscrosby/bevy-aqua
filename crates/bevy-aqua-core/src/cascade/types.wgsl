@@ -47,7 +47,6 @@ struct PrimaryLightState {
 }
 
 struct MediumState {
-    diffuse_irradiance: vec3<f32>,
     water_depth: f32,
     foam_density: f32,
 }

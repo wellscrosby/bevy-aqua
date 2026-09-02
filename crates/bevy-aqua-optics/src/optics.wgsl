@@ -370,7 +370,6 @@ fn sample_water_medium(
         );
     }
     return MediumState(
-        vec3(0.0),
         water_depth,
         foam_density,
     );

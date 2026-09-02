@@ -382,7 +382,7 @@ impl Default for SurfaceParams {
 
 #[derive(ShaderType, Debug, Default, Clone, Copy, PartialEq)]
 /// The per-cascade uniform block: transform plus derived constants, as
-/// uploaded to the shader (`CascadeParams` in common.wgsl).
+/// uploaded to the shader (`CascadeParams` in waves_sample.wgsl).
 pub struct GpuCascade {
     /// World-XZ centre of this cascade this frame.
     pub center: Vec2,
@@ -401,7 +401,7 @@ pub struct GpuCascade {
 }
 
 #[derive(ShaderType, Debug, Clone)]
-/// The cascade layout uniform (`CascadeLayout` in common.wgsl): the ring
+/// The cascade layout uniform (`CascadeLayout` in waves_sample.wgsl): the ring
 /// stack plus camera/bed mapping.
 pub struct GpuLayout {
     /// Per-cascade parameters; the last slot is a zero-weighted sentinel

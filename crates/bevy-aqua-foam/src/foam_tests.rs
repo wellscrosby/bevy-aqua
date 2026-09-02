@@ -34,7 +34,8 @@ fn pattern_texture_puts_caustics_in_green() {
     let x = 20u32;
     let y = 10u32;
     let texel = 4 * (y * PATTERN_SIZE + x) as usize;
-    let point = Vec2::new(x as f32, y as f32) * CAUSTIC_CELL_COUNT as f32 / PATTERN_SIZE as f32;
-    let ridge = caustic_ridge(point);
-    assert_eq!(data[texel + 1], linear_to_srgb(ridge * ridge));
+    assert_eq!(
+        data[texel + 1],
+        bevy_aqua_core::caustic_green_srgb(x, y, PATTERN_SIZE)
+    );
 }

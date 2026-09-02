@@ -15,6 +15,7 @@ pub mod bed;
 mod body;
 #[doc(hidden)]
 pub mod cascade;
+mod caustics;
 #[doc(hidden)]
 pub mod fields;
 #[doc(hidden)]
@@ -42,6 +43,8 @@ pub use cascade::{
     UpdateInputs, layout, lod_scale, make_detail_normal_texture, make_lod_scratch, make_texture,
     update as update_cascade_material,
 };
+#[doc(hidden)]
+pub use caustics::{PATTERN_CAUSTIC_CELLS, caustic_green_srgb, write_pattern_caustics};
 #[doc(hidden)]
 pub use view::projected_detail_lod;
 

@@ -12,7 +12,8 @@
 }
 #import bevy_aqua_core::deform::{deform_current}
 #import bevy_render::globals::Globals
-#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_FAR_TIER, MIN_SAMPLE_WEIGHT, begin_invocation, CascadeLayout, cascade_layout, far_tier_weight, field_params, lod_alpha, lod_count, owning_body, sample_field_flow, sample_field_level, surface, world_to_uv}
+#import bevy_aqua_core::waves_sample::{CascadeLayout, world_to_uv}
+#import aqua::cascade::{DEBUG_MODE_BEAUTY, DEBUG_MODE_FAR_TIER, MIN_SAMPLE_WEIGHT, begin_invocation, cascade_layout, far_tier_weight, field_params, lod_alpha, lod_count, owning_body, sample_field_flow, sample_field_level, surface}
 #import bevy_aqua_core::river::river_analytic_displacement
 
 // Retained AnimWaves output and the exact layout/time/flow that produced it.

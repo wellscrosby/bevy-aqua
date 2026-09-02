@@ -21,19 +21,18 @@
     view_transformations::position_world_to_clip,
 }
 #import bevy_pbr::mesh_view_bindings as view_bindings
+#import bevy_aqua_core::waves_sample::{
+    CascadeLayout,
+    CascadeParams,
+    lod_alpha as blend_lod_alpha,
+    sample_displacement as blend_sample_displacement,
+}
 
-// The six-element array is fixed uniform ABI; active LOD count comes from the uniform.
-const CASCADE_COUNT: u32 = 6u;
 const VERTEX_SNAP_MULTIPLIER: f32 = 2.0;
 const COARSE_GRID_MULTIPLIER: f32 = 4.0;
-const LOD_TRANSITION_START: f32 = 1.0;
-// Crest 0.4 morph fade at eight vertices per 64-vertex tile.
-const MORPH_BLACK_POINT: f32 = 0.05;
-const MORPH_FADE_SIDES: f32 = 2.0;
 const MORPH_INNER_RADIUS: f32 = 0.375;
 
 const GRID_CELL_CENTER: f32 = 0.5;
-const UV_CENTER: f32 = 0.5;
 const MIN_SAMPLE_WEIGHT: f32 = 0.001;
 const MIN_NORMAL_Y: f32 = 0.0001;
 const SAFE_LENGTH_SQUARED: f32 = 1e-8;
@@ -56,25 +55,6 @@ const DEBUG_MODE_FAR_TIER: u32 = 13u;
 const CREST_SSS_MAXIMUM: f32 = 0.6;
 const CREST_SSS_RANGE: f32 = 0.12;
 const CREST_SSS_UNCOMPRESSED: f32 = CREST_SSS_MAXIMUM - CREST_SSS_RANGE;
-
-struct CascadeParams {
-    center: vec2<f32>,
-    scale: f32,
-    texture_res: f32,
-    inv_texture_res: f32,
-    texel_width: f32,
-    weight: f32,
-    max_wavelength: f32,
-}
-
-struct CascadeLayout {
-    cascades: array<CascadeParams, CASCADE_COUNT>,
-    center: vec4<f32>,
-    // XY bed-map first-texel world origin, ZW inverse world extent.
-    bed_transform: vec4<f32>,
-    // X height minimum, Y height span (negative = no bed map), Z sea level.
-    bed_range: vec4<f32>,
-}
 
 struct PlanarReflectionView {
     view_projection: mat4x4<f32>,
@@ -414,13 +394,7 @@ fn far_tier_weight(base_world_position: vec3<f32>) -> f32 {
 }
 
 fn lod_alpha(world_xz: vec2<f32>, cascade: CascadeParams) -> f32 {
-    let offset = abs(world_xz - cascade_layout.center.xy);
-    // Chebyshev distance matches the square LOD rings; Euclidean `length` is wrong here.
-    let chebyshev_distance = max(offset.x, offset.y);
-    let raw_alpha = chebyshev_distance / cascade.scale - LOD_TRANSITION_START;
-    let black_point = MORPH_BLACK_POINT;
-    let fade_width = 1.0 - MORPH_FADE_SIDES * black_point;
-    return clamp((raw_alpha - black_point) / fade_width, 0.0, 1.0);
+    return blend_lod_alpha(world_xz, cascade, cascade_layout);
 }
 
 fn snap_and_transition(
@@ -444,11 +418,6 @@ fn snap_and_transition(
     return vec3(transitioned, alpha);
 }
 
-fn world_to_uv(world_xz: vec2<f32>, cascade: CascadeParams) -> vec2<f32> {
-    let coverage = cascade.texel_width * cascade.texture_res;
-    return (world_xz - cascade.center) / coverage + vec2(UV_CENTER);
-}
-
 // Wave content advects at `surface.advection.xy` metres per second. A
 // sampling-space shift is exact Doppler advection for both spectra:
 // sampling at `x - u * t` turns every component's phase into
@@ -459,24 +428,14 @@ fn sample_displacement(
     lod: u32,
     alpha: f32,
 ) -> vec3<f32> {
-    let sampled_xz = advected_world(world_xz);
-    let smaller = cascade_layout.cascades[lod];
-    let bigger = cascade_layout.cascades[lod + 1u];
-    let smaller_weight = (1.0 - alpha) * smaller.weight;
-    let bigger_weight = (1.0 - smaller_weight) * bigger.weight;
-    var displacement = vec3(0.0);
-
-    if smaller_weight > MIN_SAMPLE_WEIGHT {
-        let uv = world_to_uv(sampled_xz, smaller);
-        displacement += smaller_weight
-            * textureSampleLevel(lod_data, lod_sampler, uv, i32(lod), 0.0).xyz;
-    }
-    if bigger_weight > MIN_SAMPLE_WEIGHT {
-        let uv = world_to_uv(sampled_xz, bigger);
-        displacement += bigger_weight
-            * textureSampleLevel(lod_data, lod_sampler, uv, i32(lod + 1u), 0.0).xyz;
-    }
-    return displacement;
+    return blend_sample_displacement(
+        lod_data,
+        lod_sampler,
+        cascade_layout,
+        advected_world(world_xz),
+        lod,
+        alpha,
+    );
 }
 
 fn sample_fft_surface(uv: vec2<f32>, lod: u32) -> vec4<f32> {

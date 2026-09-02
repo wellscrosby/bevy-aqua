@@ -1,7 +1,7 @@
-// Cascade displacement sampling shared by GPU consumers that bind AnimWaves
-// without the cascade material: the wave-query compute pass and the
-// underwater volume composite. Layout must stay aligned with
-// `bevy_aqua_core::AnimWavesUniform`.
+// Cascade layout ABI and LOD displacement blend. Wave producers, foam
+// simulation, GPU query, and the underwater volume import this module.
+// The cascade material wraps `sample_displacement` so advection stays on
+// that caller. Layout must stay aligned with `bevy_aqua_core::AnimWavesUniform`.
 //
 // Callers apply flow advection to `world_xz` before sampling.
 
@@ -11,6 +11,7 @@ const LOD_COUNT: u32 = 5u;
 const CASCADE_COUNT: u32 = LOD_COUNT + 1u;
 const WAVE_COUNT: u32 = 40u;
 const LOD_TRANSITION_START: f32 = 1.0;
+// Crest 0.4 morph fade at eight vertices per 64-vertex tile.
 const MORPH_BLACK_POINT: f32 = 0.05;
 const MORPH_FADE_SIDES: f32 = 2.0;
 const UV_CENTER: f32 = 0.5;

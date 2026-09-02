@@ -6,7 +6,8 @@
 
 #import bevy_pbr::mesh_view_bindings::globals
 
-#import aqua::cascade::{CREST_SSS_MAXIMUM, CREST_SSS_RANGE, MIN_NORMAL_Y, MIN_SAMPLE_WEIGHT, advected_world, cascade_layout, detail_normal, detail_sampler, flow_frame, lod_alpha, lod_count, lod_data, lod_sampler, sample_fft_surface, screen_texture_lod, surface, world_to_uv}
+#import bevy_aqua_core::waves_sample::world_to_uv
+#import aqua::cascade::{CREST_SSS_MAXIMUM, CREST_SSS_RANGE, MIN_NORMAL_Y, MIN_SAMPLE_WEIGHT, advected_world, cascade_layout, detail_normal, detail_sampler, flow_frame, lod_alpha, lod_count, lod_data, lod_sampler, sample_fft_surface, screen_texture_lod, surface}
 
 const NORMAL_DIRECTION_0: vec2<f32> = vec2(0.94, 0.34);
 const NORMAL_DIRECTION_1: vec2<f32> = vec2(-0.85, -0.53);
