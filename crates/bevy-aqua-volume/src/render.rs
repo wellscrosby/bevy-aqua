@@ -15,12 +15,13 @@ use bevy::{
         GpuResourceAppExt, Render, RenderApp, RenderStartup, RenderSystems,
         diagnostic::RecordDiagnostics,
         render_resource::{
-            BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
+            BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
             CachedRenderPipelineId, ColorTargetState, ColorWrites, FilterMode, FragmentState,
             LoadOp, Operations, PipelineCache, RenderPassColorAttachment, RenderPassDescriptor,
             RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
             ShaderType, SpecializedRenderPipeline, SpecializedRenderPipelines, StoreOp,
-            TextureFormat, TextureSampleType, TextureUsages, UniformBuffer,
+            TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewId,
+            UniformBuffer,
             binding_types::{
                 sampler, texture_2d, texture_depth_2d, texture_depth_2d_multisampled,
                 uniform_buffer,
@@ -49,6 +50,7 @@ pub(super) fn add(app: &mut App) {
                 prepare_depth_usages
                     .in_set(RenderSystems::Prepare)
                     .before(bevy::core_pipeline::core_3d::prepare_core_3d_depth_textures),
+                prepare_bind_groups.in_set(RenderSystems::PrepareBindGroups),
             ),
         )
         .add_systems(
@@ -234,37 +236,41 @@ fn volume_uniform(volume: &ExtractedVolume) -> VolumeUniform {
     }
 }
 
-fn draw_volume(
-    view: ViewQuery<(
-        Option<&OceanView>,
-        Option<&VolumePipelineId>,
-        Option<&MeshViewBindGroup>,
-        &ViewTarget,
-        &ViewDepthTexture,
-        &Msaa,
-    )>,
+struct CachedGroup {
+    color: TextureViewId,
+    depth: TextureViewId,
+    group: BindGroup,
+}
+
+#[derive(Component)]
+struct VolumeBindGroups {
+    samples: u32,
+    a: CachedGroup,
+    b: CachedGroup,
+}
+
+fn prepare_bind_groups(
+    mut commands: Commands,
     volume: Res<ExtractedVolume>,
     pipeline: Res<VolumePipeline>,
     pipeline_cache: Res<PipelineCache>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     mut prepared: ResMut<Prepared>,
-    mut ctx: RenderContext,
+    views: Query<
+        (
+            Entity,
+            &ViewTarget,
+            &ViewDepthTexture,
+            &Msaa,
+            Option<&VolumeBindGroups>,
+        ),
+        With<OceanView>,
+    >,
 ) {
-    let (ocean_view, pipeline_id, view_bind_group, view_target, depth, msaa) = view.into_inner();
-    if ocean_view.is_none() || !volume.active {
+    if !volume.active {
         return;
     }
-    let Some(pipeline_id) = pipeline_id else {
-        return;
-    };
-    let Some(view_bind_group) = view_bind_group else {
-        return;
-    };
-    let Some(gpu_pipeline) = pipeline_cache.get_render_pipeline(pipeline_id.0) else {
-        return;
-    };
-
     pass::write_uniform(
         &mut prepared.uniform,
         volume_uniform(&volume),
@@ -275,22 +281,83 @@ fn draw_volume(
         return;
     };
 
-    let post_process = view_target.post_process_write();
-    let layout = if msaa.samples() > 1 {
-        &pipeline.layout_msaa
-    } else {
-        &pipeline.layout
+    for (entity, target, depth, msaa, cached) in &views {
+        let samples = msaa.samples();
+        let layout = if samples > 1 {
+            &pipeline.layout_msaa
+        } else {
+            &pipeline.layout
+        };
+        let depth_view = depth.view();
+        let a_color = target.main_texture_view();
+        let b_color = target.main_texture_other_view();
+        let fresh = cached.is_none_or(|groups| {
+            groups.samples != samples
+                || groups.a.color != a_color.id()
+                || groups.a.depth != depth_view.id()
+                || groups.b.color != b_color.id()
+                || groups.b.depth != depth_view.id()
+        });
+        if !fresh {
+            continue;
+        }
+        let make = |color: &TextureView| CachedGroup {
+            color: color.id(),
+            depth: depth_view.id(),
+            group: device.create_bind_group(
+                Some("aqua_volume_bind_group"),
+                &pipeline_cache.get_bind_group_layout(layout),
+                &BindGroupEntries::sequential((
+                    color,
+                    depth_view,
+                    &pipeline.sampler,
+                    uniform.clone(),
+                )),
+            ),
+        };
+        commands.entity(entity).insert(VolumeBindGroups {
+            samples,
+            a: make(a_color),
+            b: make(b_color),
+        });
+    }
+}
+
+fn draw_volume(
+    view: ViewQuery<(
+        Option<&OceanView>,
+        Option<&VolumePipelineId>,
+        Option<&VolumeBindGroups>,
+        Option<&MeshViewBindGroup>,
+        &ViewTarget,
+    )>,
+    volume: Res<ExtractedVolume>,
+    pipeline_cache: Res<PipelineCache>,
+    mut ctx: RenderContext,
+) {
+    let (ocean_view, pipeline_id, bind_groups, view_bind_group, view_target) = view.into_inner();
+    if ocean_view.is_none() || !volume.active {
+        return;
+    }
+    let Some(pipeline_id) = pipeline_id else {
+        return;
     };
-    let bind_group = ctx.render_device().create_bind_group(
-        Some("aqua_volume_bind_group"),
-        &pipeline_cache.get_bind_group_layout(layout),
-        &BindGroupEntries::sequential((
-            post_process.source,
-            depth.view(),
-            &pipeline.sampler,
-            uniform,
-        )),
-    );
+    let Some(bind_groups) = bind_groups else {
+        return;
+    };
+    let Some(view_bind_group) = view_bind_group else {
+        return;
+    };
+    let Some(gpu_pipeline) = pipeline_cache.get_render_pipeline(pipeline_id.0) else {
+        return;
+    };
+
+    let post_process = view_target.post_process_write();
+    let bind_group = if bind_groups.a.color == post_process.source.id() {
+        &bind_groups.a.group
+    } else {
+        &bind_groups.b.group
+    };
 
     let diagnostics = ctx.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
@@ -313,7 +380,7 @@ fn draw_volume(
     let pass_span = diagnostics.pass_span(&mut render_pass, "aqua_volume");
     render_pass.set_render_pipeline(gpu_pipeline);
     render_pass.set_bind_group(0, &view_bind_group.main, &view_bind_group.main_offsets);
-    render_pass.set_bind_group(1, &bind_group, &[]);
+    render_pass.set_bind_group(1, bind_group, &[]);
     render_pass.draw(0..3, 0..1);
     pass_span.end(&mut render_pass);
 }
