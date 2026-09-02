@@ -561,11 +561,6 @@ fn fragment(
     let geometric_normal = safe_normalize(in.world_normal, vec3(0.0, 1.0, 0.0));
     let to_view = view_direction(in.world_position.xyz);
     if !is_front {
-        // Same triangles from the air side would z-fight with the belly. Keep
-        // back faces only when the camera is under this fragment.
-        if view.world_position.y >= in.world_position.y {
-            discard;
-        }
         return shade_underside(in, surface_lod, geometric_normal, to_view, mode);
     }
     let far_diagnostic = mode == DEBUG_MODE_FAR_TIER;
