@@ -14,31 +14,24 @@ use bevy::{
     render::{
         GpuResourceAppExt, Render, RenderApp, RenderStartup, RenderSystems,
         diagnostic::RecordDiagnostics,
-        render_asset::RenderAssets,
         render_resource::{
             BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
-            CachedRenderPipelineId, ColorTargetState, ColorWrites, Extent3d, FilterMode,
-            FragmentState, LoadOp, Operations, PipelineCache, RenderPassColorAttachment,
-            RenderPassDescriptor, RenderPipelineDescriptor, Sampler, SamplerBindingType,
-            SamplerDescriptor, ShaderStages, ShaderType, SpecializedRenderPipeline,
-            SpecializedRenderPipelines, StoreOp, Texture, TextureDescriptor, TextureDimension,
-            TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
-            TextureViewDimension, UniformBuffer,
+            CachedRenderPipelineId, ColorTargetState, ColorWrites, FilterMode, FragmentState,
+            LoadOp, Operations, PipelineCache, RenderPassColorAttachment, RenderPassDescriptor,
+            RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
+            ShaderType, SpecializedRenderPipeline, SpecializedRenderPipelines, StoreOp,
+            TextureFormat, TextureSampleType, TextureUsages, UniformBuffer,
             binding_types::{
-                sampler, texture_2d, texture_2d_array, texture_depth_2d,
-                texture_depth_2d_multisampled, uniform_buffer,
+                sampler, texture_2d, texture_depth_2d, texture_depth_2d_multisampled,
+                uniform_buffer,
             },
         },
         renderer::{RenderContext, RenderDevice, RenderQueue, ViewQuery},
-        texture::GpuImage,
         view::{ExtractedView, ViewDepthTexture, ViewTarget},
     },
     shader::ShaderDefVal,
 };
-use bevy_aqua_core::{
-    AnimWavesUniform, AnimWavesUniformSlot, Data, GpuLayout, GpuWave, LOD_COUNT, OceanView,
-    WAVE_SLOTS, pass,
-};
+use bevy_aqua_core::{OceanView, pass};
 
 use super::ExtractedVolume;
 
@@ -78,9 +71,6 @@ struct VolumeUniform {
 struct VolumePipeline {
     mesh_view_layouts: MeshPipelineViewLayouts,
     sampler: Sampler,
-    waves_sampler: Sampler,
-    _fallback_waves: Texture,
-    fallback_waves_view: TextureView,
     layout: BindGroupLayoutDescriptor,
     layout_msaa: BindGroupLayoutDescriptor,
     fullscreen_shader: FullscreenShader,
@@ -90,7 +80,6 @@ struct VolumePipeline {
 #[derive(Resource)]
 struct Prepared {
     uniform: Option<UniformBuffer<VolumeUniform>>,
-    anim_waves: Option<UniformBuffer<AnimWavesUniform>>,
 }
 
 impl VolumePipeline {
@@ -107,9 +96,6 @@ impl VolumePipeline {
                 texture_depth_2d(),
                 sampler(SamplerBindingType::Filtering),
                 uniform_buffer::<VolumeUniform>(false),
-                texture_2d_array(TextureSampleType::Float { filterable: true }),
-                sampler(SamplerBindingType::Filtering),
-                uniform_buffer::<AnimWavesUniform>(false),
             ),
         );
         let entries_msaa = BindGroupLayoutEntries::sequential(
@@ -119,9 +105,6 @@ impl VolumePipeline {
                 texture_depth_2d_multisampled(),
                 sampler(SamplerBindingType::Filtering),
                 uniform_buffer::<VolumeUniform>(false),
-                texture_2d_array(TextureSampleType::Float { filterable: true }),
-                sampler(SamplerBindingType::Filtering),
-                uniform_buffer::<AnimWavesUniform>(false),
             ),
         );
         let sampler = render_device.create_sampler(&SamplerDescriptor {
@@ -129,37 +112,9 @@ impl VolumePipeline {
             min_filter: FilterMode::Linear,
             ..default()
         });
-        let waves_sampler = render_device.create_sampler(&SamplerDescriptor {
-            label: Some("aqua_volume_waves"),
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
-            ..default()
-        });
-        let fallback_waves = render_device.create_texture(&TextureDescriptor {
-            label: Some("aqua_volume_waves_fallback"),
-            size: Extent3d {
-                width: 1,
-                height: 1,
-                depth_or_array_layers: LOD_COUNT as u32,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba16Float,
-            usage: TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let fallback_waves_view = fallback_waves.create_view(&TextureViewDescriptor {
-            label: Some("aqua_volume_waves_fallback_view"),
-            dimension: Some(TextureViewDimension::D2Array),
-            ..default()
-        });
         Self {
             mesh_view_layouts,
             sampler,
-            waves_sampler,
-            _fallback_waves: fallback_waves,
-            fallback_waves_view,
             layout: BindGroupLayoutDescriptor::new("aqua_volume_layout", &entries),
             layout_msaa: BindGroupLayoutDescriptor::new("aqua_volume_layout_msaa", &entries_msaa),
             fullscreen_shader,
@@ -182,10 +137,7 @@ fn init_pipeline(
         fullscreen_shader.clone(),
         fragment_shader,
     ));
-    commands.insert_resource(Prepared {
-        uniform: None,
-        anim_waves: None,
-    });
+    commands.insert_resource(Prepared { uniform: None });
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -277,23 +229,8 @@ fn volume_uniform(volume: &ExtractedVolume) -> VolumeUniform {
     VolumeUniform {
         extinction: optics.extinction.extend(optics.scatter_scale.max(0.0)),
         scatter: optics.scatter_tint.max(Vec3::ZERO).extend(0.0),
-        environment: Vec4::new(
-            volume.optics.scattering_asymmetry,
-            if volume.sample_waves { 1.0 } else { 0.0 },
-            0.0,
-            0.0,
-        ),
-        sea: Vec4::new(volume.surface_level, 0.0, 0.0, 0.0),
-    }
-}
-
-fn fallback_anim_waves(layout: GpuLayout) -> AnimWavesUniform {
-    AnimWavesUniform {
-        layout,
-        waves: [GpuWave::default(); WAVE_SLOTS],
-        ranges: [UVec4::ZERO; LOD_COUNT],
-        time: Vec4::ZERO,
-        flow: Vec4::ZERO,
+        environment: Vec4::new(volume.optics.scattering_asymmetry, 0.0, 0.0, 0.0),
+        sea: Vec4::new(volume.surface_level, volume.camera_y, 0.0, 0.0),
     }
 }
 
@@ -309,9 +246,6 @@ fn draw_volume(
     volume: Res<ExtractedVolume>,
     pipeline: Res<VolumePipeline>,
     pipeline_cache: Res<PipelineCache>,
-    images: Res<RenderAssets<GpuImage>>,
-    data: Option<Res<Data>>,
-    waves_slot: Option<Res<AnimWavesUniformSlot>>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     mut prepared: ResMut<Prepared>,
@@ -337,38 +271,9 @@ fn draw_volume(
         &device,
         &queue,
     );
-    let slot_binding = waves_slot
-        .as_ref()
-        .and_then(|slot| slot.0.as_ref().and_then(UniformBuffer::binding));
-    if slot_binding.is_none() {
-        let waves_layout = data.as_ref().map_or_else(
-            || GpuLayout::new(&bevy_aqua_core::layout(Vec2::ZERO), Vec2::ZERO, 0.0),
-            |data| data.layout().clone(),
-        );
-        pass::write_uniform(
-            &mut prepared.anim_waves,
-            fallback_anim_waves(waves_layout),
-            &device,
-            &queue,
-        );
-    }
     let Some(uniform) = prepared.uniform.as_ref().and_then(UniformBuffer::binding) else {
         return;
     };
-    let Some(anim_waves) = slot_binding.or_else(|| {
-        prepared
-            .anim_waves
-            .as_ref()
-            .and_then(UniformBuffer::binding)
-    }) else {
-        return;
-    };
-
-    let waves_view = data
-        .as_ref()
-        .and_then(|data| images.get(&data.texture()))
-        .map(|image| &image.texture_view)
-        .unwrap_or(&pipeline.fallback_waves_view);
 
     let post_process = view_target.post_process_write();
     let layout = if msaa.samples() > 1 {
@@ -384,9 +289,6 @@ fn draw_volume(
             depth.view(),
             &pipeline.sampler,
             uniform,
-            waves_view,
-            &pipeline.waves_sampler,
-            anim_waves,
         )),
     );
 

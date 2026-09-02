@@ -1,9 +1,4 @@
 #import bevy_core_pipeline::fullscreen_vertex_shader::FullscreenVertexOutput
-#import bevy_aqua_core::waves_sample::{
-    AnimWavesUniform,
-    resolve_lod,
-    sample_displacement,
-}
 #import aqua::medium::{medium_radiance, mesh_incident_transmittance, PATH_LENGTH_MAX}
 #import bevy_pbr::mesh_view_bindings::view
 #import bevy_pbr::view_transformations::{
@@ -27,25 +22,6 @@ struct VolumeUniform {
 #endif
 @group(1) @binding(2) var screen_sampler: sampler;
 @group(1) @binding(3) var<uniform> volume: VolumeUniform;
-@group(1) @binding(4) var lod_data: texture_2d_array<f32>;
-@group(1) @binding(5) var lod_sampler: sampler;
-@group(1) @binding(6) var<uniform> waves: AnimWavesUniform;
-
-fn displacement_y(world_xz: vec2<f32>) -> f32 {
-    if volume.environment.y < 0.5 {
-        return 0.0;
-    }
-    let sampled_xz = world_xz - waves.flow.xy * waves.time.x;
-    let lod = resolve_lod(waves.cascade_layout, sampled_xz);
-    return sample_displacement(
-        lod_data,
-        lod_sampler,
-        waves.cascade_layout,
-        sampled_xz,
-        lod.lod,
-        lod.alpha,
-    ).y;
-}
 
 fn view_ray_direction(frag_xy: vec2<f32>) -> vec3<f32> {
     // Near plane (NDC z = 1). Reverse-Z infinite perspective puts the far
@@ -76,29 +52,24 @@ fn fragment(
     let raw_depth = textureLoad(depth_texture, vec2<i32>(in.position.xy), 0);
 #endif
 
-    let camera = view.world_position;
     let plane = volume.sea.x;
-    var surface = plane;
-    if camera.y >= plane {
-        let camera_surface = plane + displacement_y(camera.xz);
-        if camera.y >= camera_surface {
-            return vec4(scene, 1.0);
-        }
-        surface = camera_surface;
+    let camera_y = volume.sea.y;
+    if camera_y >= plane {
+        return vec4(scene, 1.0);
     }
 
+    let camera = view.world_position;
     let rd_world = view_ray_direction(in.position.xy);
     var t_scene = PATH_LENGTH_MAX;
     if raw_depth > 0.0 {
         let world = position_ndc_to_world(frag_coord_to_ndc(vec4(in.position.xy, raw_depth, 1.0)));
         t_scene = min(length(world - camera), PATH_LENGTH_MAX);
-        let mesh_surface = plane + displacement_y(world.xz);
         scene *= mesh_incident_transmittance(
             volume.extinction.rgb,
-            max(mesh_surface - world.y, 0.0),
+            max(plane - world.y, 0.0),
         );
     }
-    let t_surface = intersect_surface_metres(camera, rd_world, PATH_LENGTH_MAX, surface);
+    let t_surface = intersect_surface_metres(camera, rd_world, PATH_LENGTH_MAX, plane);
     var t_end = min(t_scene, PATH_LENGTH_MAX);
     if rd_world.y > 0.0 && raw_depth <= 0.0 {
         // No mesh hit looking up: integrate to the mean plane and do not
@@ -107,7 +78,7 @@ fn fragment(
         t_end = min(t_end, t_surface);
         scene = vec3(0.0);
     }
-    let d0 = max(surface - camera.y, 0.0);
+    let d0 = max(plane - camera_y, 0.0);
     return vec4(
         medium_radiance(
             scene,
