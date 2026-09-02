@@ -497,51 +497,57 @@ const TIR_SSR_STEPS: u32 = 24u;
 const TIR_SSR_STEP: f32 = 1.0;
 const TIR_SSR_START: f32 = 0.3;
 const TIR_SSR_THICKNESS: f32 = 2.0;
+// Looking straight up, water-to-air Fresnel is ~F0. March only when the
+// bounce is a visible share of the mix (TIR is 1.0).
+const TIR_SSR_FRESNEL_MIN: f32 = 0.2;
 
 fn underside_bounce_radiance(
     origin: vec3<f32>,
     bounced: vec3<f32>,
     surface_y: f32,
+    march: bool,
 ) -> vec3<f32> {
     var scene = vec3(0.0);
     var t_end = PATH_LENGTH_MAX;
 #ifdef DEPTH_PREPASS
-    let viewport_origin = view.viewport.xy;
-    let viewport_size = view.viewport.zw;
-    var t = TIR_SSR_START;
-    for (var i = 0u; i < TIR_SSR_STEPS; i++) {
-        t += TIR_SSR_STEP;
-        let world = origin + bounced * t;
-        if world.y > surface_y - UNDERSIDE_AIR_MARGIN {
-            break;
-        }
-        let clip = view.clip_from_world * vec4(world, 1.0);
-        if clip.w <= LUMINANCE_EPSILON {
-            break;
-        }
-        let ndc = clip.xyz / clip.w;
-        let uv = ndc.xy * vec2(0.5, -0.5) + vec2(0.5);
-        if any(uv < vec2(0.0)) || any(uv > vec2(1.0)) {
-            break;
-        }
-        let pixel = uv * (viewport_size - vec2(1.0)) + viewport_origin;
-        let scene_depth = prepass_utils::prepass_depth(vec4(pixel, 0.0, 1.0), 0u);
-        if scene_depth <= 0.0 {
-            continue;
-        }
-        let ray_eye = camera_eye_depth(uv, ndc.z);
-        let scene_eye = camera_eye_depth(uv, scene_depth);
-        if ray_eye > scene_eye && (ray_eye - scene_eye) < TIR_SSR_THICKNESS {
-            let hit = reconstruct_world_from_uv(uv, scene_depth);
-            if hit.y < surface_y - UNDERSIDE_AIR_MARGIN {
-                scene = attenuate_underwater_scene(
-                    opaque_background(uv),
-                    hit.y,
-                    surface_y,
-                    invocation_extinction(),
-                );
-                t_end = clamp(dot(hit - origin, bounced), TIR_SSR_START, PATH_LENGTH_MAX);
+    if march {
+        let viewport_origin = view.viewport.xy;
+        let viewport_size = view.viewport.zw;
+        var t = TIR_SSR_START;
+        for (var i = 0u; i < TIR_SSR_STEPS; i++) {
+            t += TIR_SSR_STEP;
+            let world = origin + bounced * t;
+            if world.y > surface_y - UNDERSIDE_AIR_MARGIN {
                 break;
+            }
+            let clip = view.clip_from_world * vec4(world, 1.0);
+            if clip.w <= LUMINANCE_EPSILON {
+                break;
+            }
+            let ndc = clip.xyz / clip.w;
+            let uv = ndc.xy * vec2(0.5, -0.5) + vec2(0.5);
+            if any(uv < vec2(0.0)) || any(uv > vec2(1.0)) {
+                break;
+            }
+            let pixel = uv * (viewport_size - vec2(1.0)) + viewport_origin;
+            let scene_depth = prepass_utils::prepass_depth(vec4(pixel, 0.0, 1.0), 0u);
+            if scene_depth <= 0.0 {
+                continue;
+            }
+            let ray_eye = camera_eye_depth(uv, ndc.z);
+            let scene_eye = camera_eye_depth(uv, scene_depth);
+            if ray_eye > scene_eye && (ray_eye - scene_eye) < TIR_SSR_THICKNESS {
+                let hit = reconstruct_world_from_uv(uv, scene_depth);
+                if hit.y < surface_y - UNDERSIDE_AIR_MARGIN {
+                    scene = attenuate_underwater_scene(
+                        opaque_background(uv),
+                        hit.y,
+                        surface_y,
+                        invocation_extinction(),
+                    );
+                    t_end = clamp(dot(hit - origin, bounced), TIR_SSR_START, PATH_LENGTH_MAX);
+                    break;
+                }
             }
         }
     }
@@ -573,13 +579,15 @@ fn shade_underside(
     let water_normal = safe_normalize(-near.normal, vec3(0.0, -1.0, 0.0));
     let incident = -to_view;
     let bounced = reflect(incident, water_normal);
+    let transmitted = refract(incident, water_normal, N_WATER);
+    let cos_theta = max(dot(-incident, water_normal), 0.0);
+    let fresnel = fresnel_water_to_air(cos_theta);
     let reflected = underside_bounce_radiance(
         in.world_position.xyz,
         bounced,
         in.world_position.y,
+        fresnel >= TIR_SSR_FRESNEL_MIN,
     );
-
-    let transmitted = refract(incident, water_normal, N_WATER);
     if dot(transmitted, transmitted) < LUMINANCE_EPSILON {
         return vec4(reflected, 1.0);
     }
@@ -631,8 +639,6 @@ fn shade_underside(
 #endif
 
     window *= N_WATER * N_WATER;
-    let cos_theta = max(dot(-incident, water_normal), 0.0);
-    let fresnel = fresnel_water_to_air(cos_theta);
     return vec4(mix(window, reflected, fresnel), 1.0);
 }
 
